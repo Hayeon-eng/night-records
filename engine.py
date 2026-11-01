@@ -38,7 +38,7 @@ class Engine:
         return db
     def create(self,name,size,pace):
         name=clean(name,24,'이름')
-        if type(size) is not int or size not in (6,7,8): raise GameError('정원은 6~8명입니다.')
+        if type(size) is not int or size not in (2,6,7,8): raise GameError('정원은 6~8명입니다.')
         if pace not in ('normal','quick'): raise GameError('진행 속도를 선택해주세요.')
         token=secrets.token_urlsafe(32); mid=secrets.token_hex(8); now=self.clock()
         with self.connect() as db:
@@ -95,13 +95,13 @@ class Engine:
                 if any(x['role']==rid and x['id']!=m['id'] for x in room['members']):raise GameError('이미 선택된 역할입니다.',409)
                 # Guarantee there are enough unfilled slots for all mandatory roles.
                 assigned=[rid if x['id']==m['id'] else x['role'] for x in room['members']]
-                missing=len(REQUIRED-set(assigned));free=room['size']-len([v for v in assigned if v])
+                missing=0 if room['size']<6 else len(REQUIRED-set(assigned));free=room['size']-len([v for v in assigned if v])
                 if missing>free:raise GameError('남은 자리는 필수 역할을 위해 비워두어야 합니다.')
                 m['role']=rid;m['ready']=False
             elif action=='ready':
                 if room['phase']!='lobby' or not m['role']:raise GameError('먼저 역할을 선택해주세요.')
                 m['ready']=not m['ready']
-                if len(room['members'])==room['size'] and all(x['ready'] for x in room['members']) and REQUIRED<=set(x['role'] for x in room['members']):self.advance(room)
+                if len(room['members'])==room['size'] and all(x['ready'] for x in room['members']) and (room['size']<6 or REQUIRED<=set(x['role'] for x in room['members'])):self.advance(room)
             elif action=='vote':
                 if room['phase'] in ('lobby','final','ending'):raise GameError('지금은 단계 동의를 받지 않습니다.')
                 if m['id'] in room['votes']:room['votes'].remove(m['id'])
