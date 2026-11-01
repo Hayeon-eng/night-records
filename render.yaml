@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: night-records
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-production.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 server:application
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: DB_PATH
+        value: /tmp/game.sqlite3
