@@ -91,3 +91,8 @@ TRUTH = [
 ]
 # Every essential conclusion remains reachable via public evidence without an optional role.
 DEPENDENCIES = {'culprit':['e1','e3'],'method':['e2','e3'],'motive':['e4','planner-3'],'past':['e4','friend-2']}
+
+# UI 설정 (시나리오별): THEME=noir|school|romance|medieval, STAMP=표지 도장 문구(비우면 숨김), STRIP=카드 상단 띠 문구
+THEME='noir'
+STAMP=''
+STRIP='CASE FILE'

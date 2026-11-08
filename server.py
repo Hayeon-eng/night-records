@@ -3,6 +3,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 from pathlib import Path
 import threading
 import time
@@ -17,6 +18,17 @@ ROOT=Path(__file__).parent
 engine=Engine(os.environ.get('DB_PATH',str(ROOT/'data/game.sqlite3')))
 LIMITS=defaultdict(deque);RATE_LOCK=threading.Lock()
 STATIC={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css','/manifest.webmanifest':'manifest.webmanifest','/icon.svg':'icon.svg'}
+FONT_RE=re.compile(r'^/fonts/([A-Za-z0-9._-]+\.woff2)$');IMG_RE=re.compile(r'^/img/(photos|clues|evidence)/([A-Za-z0-9_-]+)$')
+ASSET_TYPES={'.woff2':'font/woff2','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}
+def asset(path):
+    m=FONT_RE.match(path)
+    if m:
+        f=ROOT/'static/fonts'/m.group(1);return f if f.is_file() else None
+    m=IMG_RE.match(path)
+    if m:
+        for ext in ('jpg','jpeg','png','webp'):
+            f=ROOT/'static/img'/m.group(1)/f'{m.group(2)}.{ext}'
+            if f.is_file():return f
 def limited(key,count,seconds):
     now=time.time()
     with RATE_LOCK:
@@ -49,7 +61,7 @@ def application(env,start_response):
                 body=json.loads(env['wsgi.input'].read(length))
                 if not isinstance(body,dict):raise GameError('요청 형식이 올바르지 않습니다.')
             if path=='/api/catalog' and method=='GET':
-                data=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,roles=[{k:r[k] for k in ('id','title','required','icon','faction','teaser')} for r in S.ROLES])
+                data=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),roles=[{k:r[k] for k in ('id','title','required','icon','faction','teaser')} for r in S.ROLES])
             elif path=='/api/rooms' and method=='POST':
                 limited(('create',ip),15,3600)
                 data=engine.create(body.get('name'),body.get('size'),body.get('pace','normal'))
@@ -62,6 +74,9 @@ def application(env,start_response):
                 token=env.get('HTTP_AUTHORIZATION','').removeprefix('Bearer ')
                 data=engine.mutate(code,token,action,body)
             payload=json.dumps(data,ensure_ascii=False).encode();headers.append(('Content-Type','application/json; charset=utf-8'));status='200 OK'
+        elif method=='GET' and asset(path):
+            file=asset(path);payload=file.read_bytes()
+            headers.extend([('Content-Type',ASSET_TYPES[file.suffix]),('Cache-Control','public, max-age=86400')]);status='200 OK'
         elif path in STATIC and method=='GET':
             file=ROOT/'static'/STATIC[path];payload=file.read_bytes()
             headers.extend([('Content-Type',mimetypes.guess_type(file)[0] or 'application/octet-stream'),('Cache-Control','no-cache')]);status='200 OK'
