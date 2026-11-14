@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1A31">
+<meta name="description" content="친구의 이름으로 시작하는 6~8인 머더미스터리. 함께 있어도, 멀리 있어도.">
+<title>밤의 기록 · 친구들과 여는 사건실</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+<script defer src="/app.js"></script>
+</head>
+<body data-theme="noir">
+<div id="app"><div class="boot">밤의 기록을 준비하고 있습니다…</div></div>
+<div id="overlay"></div>
+<div id="tutorial"></div>
+<div id="cine"></div>
+<div class="zoom" id="zoom" data-action="zoom-close"><button class="x" aria-label="닫기">×</button><img id="zoomimg" alt=""></div>
+<div id="notifs" aria-live="polite"></div>
+<button id="fab" class="fab" data-action="chat-open" hidden aria-label="채팅 열기">💬 채팅<span class="fab-n" id="fabn" hidden></span></button>
+<aside class="chat" id="chat">
+  <div class="chat-head">
+    <div class="row"><span>사건실 대화</span><button class="btn sm ghost" data-action="chat-close">닫기</button></div>
+    <select id="chat-target" aria-label="메시지 받는 사람"></select>
+  </div>
+  <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+  <form id="chat-form" class="chat-form">
+    <textarea id="chat-input" name="text" maxlength="1000" placeholder="지금 누구를 의심하고 있나요?" aria-label="메시지"></textarea>
+    <div class="row"><span id="chat-label">공개 대화</span><button class="btn sm" type="submit">보내기 ↑</button></div>
+  </form>
+</aside>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="confirm"><form method="dialog"><h2 id="confirm-title">확인</h2><p id="confirm-text"></p><div class="acts"><button value="cancel">돌아가기</button><button value="ok">확정하기</button></div></form></dialog>
+<dialog id="sharebox"><form id="share-form"><h2>단서를 누구에게 공개할까요?</h2><p class="sh-clue" id="share-title"></p><div id="share-list" class="sh-list"></div><p class="sh-note">한 번 공개하면 되돌릴 수 없어요. 선택하지 않은 사람은 단서 내용을 볼 수 없지만, “누가 누구에게 공개했는지”는 모두에게 알림으로 표시됩니다.</p><div class="acts"><button type="button" data-action="share-cancel">취소</button><button type="submit" class="go">공개하기</button></div></form></dialog>
+</body>
+</html>
