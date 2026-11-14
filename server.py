@@ -1,4 +1,4 @@
-"""One-process WSGI application; local runner uses a threaded standard-library server."""
+"""WSGI 애플리케이션. 로컬은 표준 라이브러리 서버로, Vercel 은 api/index.py 의 `app` 으로 실행한다."""
 import json
 import logging
 import mimetypes
@@ -12,22 +12,25 @@ from socketserver import ThreadingMixIn
 from urllib.parse import urlparse
 from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
 from engine import Engine, GameError
+from store import StoreError, make_store
 import scenario as S
 
 ROOT=Path(__file__).parent
-engine=Engine(os.environ.get('DB_PATH',str(ROOT/'data/game.sqlite3')))
+PUBLIC=ROOT/'public'  # 정적 파일. Vercel 에서는 CDN 이 직접 제공하고, 확장자 없는 /img/* 만 이 코드가 처리한다.
+engine=Engine(make_store(str(ROOT/'data/game.sqlite3')))
+ON_VERCEL=bool(os.environ.get('VERCEL'))
 LIMITS=defaultdict(deque);RATE_LOCK=threading.Lock()
-STATIC={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css','/manifest.webmanifest':'manifest.webmanifest','/icon.svg':'icon.svg'}
+STATIC={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/style.css':'style.css','/manifest.webmanifest':'manifest.webmanifest','/icon.svg':'icon.svg','/sw.js':'sw.js'}
 FONT_RE=re.compile(r'^/fonts/([A-Za-z0-9._-]+\.woff2)$');IMG_RE=re.compile(r'^/img/(photos|clues|evidence)/([A-Za-z0-9_-]+)$')
 ASSET_TYPES={'.woff2':'font/woff2','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}
 def asset(path):
     m=FONT_RE.match(path)
     if m:
-        f=ROOT/'static/fonts'/m.group(1);return f if f.is_file() else None
+        f=PUBLIC/'fonts'/m.group(1);return f if f.is_file() else None
     m=IMG_RE.match(path)
     if m:
         for ext in ('jpg','jpeg','png','webp'):
-            f=ROOT/'static/img'/m.group(1)/f'{m.group(2)}.{ext}'
+            f=PUBLIC/'img'/m.group(1)/f'{m.group(2)}.{ext}'
             if f.is_file():return f
 def limited(key,count,seconds):
     now=time.time()
@@ -49,7 +52,7 @@ def application(env,start_response):
         elif path.startswith('/api/'):
             headers.append(('Cache-Control','no-store'))
             if method not in ('GET','POST'):raise GameError('지원하지 않는 요청입니다.',405)
-            ip=env.get('REMOTE_ADDR','unknown');limited(('api',ip),600,60)
+            ip=(env.get('HTTP_X_FORWARDED_FOR','').split(',')[0].strip() if ON_VERCEL else '') or env.get('REMOTE_ADDR','unknown');limited(('api',ip),900,60)
             body={}
             if method=='POST':
                 origin=env.get('HTTP_ORIGIN')
@@ -61,7 +64,7 @@ def application(env,start_response):
                 body=json.loads(env['wsgi.input'].read(length))
                 if not isinstance(body,dict):raise GameError('요청 형식이 올바르지 않습니다.')
             if path=='/api/catalog' and method=='GET':
-                data=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),roles=[{k:r[k] for k in ('id','title','required','icon','faction','teaser')} for r in S.ROLES])
+                data=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),roles=[{k:r[k] for k in ('id','name','title','required','icon','faction','teaser')} for r in S.ROLES],tutorial=S.TUTORIAL,guide=S.PHASE_GUIDE)
             elif path=='/api/rooms' and method=='POST':
                 limited(('create',ip),15,3600)
                 data=engine.create(body.get('name'),body.get('size'),body.get('pace','normal'))
@@ -78,11 +81,11 @@ def application(env,start_response):
             file=asset(path);payload=file.read_bytes()
             headers.extend([('Content-Type',ASSET_TYPES[file.suffix]),('Cache-Control','public, max-age=86400')]);status='200 OK'
         elif path in STATIC and method=='GET':
-            file=ROOT/'static'/STATIC[path];payload=file.read_bytes()
+            file=PUBLIC/STATIC[path];payload=file.read_bytes()
             headers.extend([('Content-Type',mimetypes.guess_type(file)[0] or 'application/octet-stream'),('Cache-Control','no-cache')]);status='200 OK'
         else:raise GameError('페이지를 찾을 수 없습니다.',404)
         if path=='/health':payload=json.dumps(data).encode();headers.append(('Content-Type','application/json'));status='200 OK'
-    except (GameError,ValueError,json.JSONDecodeError) as exc:
+    except (GameError,StoreError,ValueError,json.JSONDecodeError) as exc:
         code=getattr(exc,'status',400);status=f'{code} Error';payload=json.dumps({'error':str(exc)},ensure_ascii=False).encode();headers.append(('Content-Type','application/json; charset=utf-8'))
     except Exception:
         logging.exception('Request failed');status='500 Error';payload=json.dumps({'error':'서버 오류입니다. 입력을 유지하고 다시 시도해주세요.'},ensure_ascii=False).encode();headers.append(('Content-Type','application/json; charset=utf-8'))
@@ -93,11 +96,11 @@ def scheduler():
         try:engine.tick_all()
         except Exception:logging.exception('Clock update failed')
         time.sleep(2)
-threading.Thread(target=scheduler,daemon=True).start()
 class ThreadServer(ThreadingMixIn,WSGIServer):daemon_threads=True
 class QuietHandler(WSGIRequestHandler):
     def log_message(self,format,*args): pass # No room codes or private tokens in access logs.
 if __name__=='__main__':
+    threading.Thread(target=scheduler,daemon=True).start()  # 서버리스(Vercel)에는 상시 스레드가 없으므로 로컬 실행에서만 시작
     port=int(os.environ.get('PORT','8000'))
     print(f'Night Records: http://localhost:{port}',flush=True)
     with make_server('0.0.0.0',port,application,server_class=ThreadServer,handler_class=QuietHandler) as server:server.serve_forever()
