@@ -60,25 +60,41 @@ function topbar(title,kicker,right='',back=false){return `<header class="top"><d
 function titleblk(kicker){return `<div class="titleblk">${catalog.stamp?`<div class="stamp">${esc(catalog.stamp)}</div>`:''}<div class="kicker">${kicker}</div><h1>${esc(catalog.title)}</h1><p class="tag">${esc(catalog.summary)}</p></div>`;}
 
 /* ================= 시작 화면 ================= */
+// 공통 게임 방법: 에피소드와 무관한 규칙만 담는다. 에피소드별 내용은 catalog.scenarios(카드)와 대기실 '진행 방법'에서 보여준다.
+// **굵게** 표시한 문구는 rich()가 강조(굵기+컬러)로 바꾼다.
+const rich=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+const FLOW=[['01','🎭','역할 선택'],['02','📖','캐릭터북 확인'],['03','🔎','단서 조사 및 대화'],['04','🧩','최종 추리']];
+const HOWTO=[
+  {icon:'🎭',title:'각자의 역할을 선택해요',lines:['친구들과 사건실에 입장한 뒤 **각자 원하는 캐릭터**를 선택해요.','캐릭터마다 **직업, 성격, 관계, 사건과 얽힌 이야기**가 달라요.']},
+  {icon:'📖',title:'나만의 캐릭터북을 읽어요',lines:['**나에게만 공개되는 캐릭터북**을 확인해요.','공개된 이야기뿐 아니라 **개인적인 비밀, 사건 당일의 시간표, 개인 미션**이 포함될 수 있어요.','다른 사람에게 무엇을 공개하고 숨길지는 **각자의 선택**이에요.']},
+  {icon:'🔎',title:'단서를 조사해요',lines:['내가 가진 단서는 **자유롭게** 확인할 수 있어요.','다른 인물의 봉인된 단서는 **조사 토큰**을 사용해 조사해요.','조사 결과는 **먼저 조사한 사람에게만** 공개돼요.']},
+  {icon:'🗣️',title:'대화하고 단서를 공유해요',lines:['**공개 채팅 또는 귓속말**로 친구들과 정보를 주고받아요.','단서는 **모두에게** 공개하거나 **특정 플레이어에게만** 공유할 수 있어요.','누가 진실을 말하고 누가 무언가를 숨기는지 추리해요.']},
+  {icon:'🧩',title:'최종 추리를 제출해요',lines:['모든 조사가 끝나면 **범인, 범행 방법, 동기** 등 사건의 핵심 질문에 답해요.','추리 결과가 모이면 **사건의 진상과 각 인물의 이야기**가 공개돼요.','마지막에 **내 추리가 얼마나 정확했는지** 확인할 수 있어요.']}
+];
+const HOWTO_NOTE='※ 에피소드에 따라 인원수, 조사 방식, 세부 규칙은 달라질 수 있어요.';
+let tutIdx=0;
+
+// 에피소드 카드: catalog.scenarios(서버 데이터)만 사용한다. 새 에피소드가 등록되면 카드가 자동으로 늘어난다.
+const epReady=s=>(s.status||'available')==='available';
+function epPlayers(s){if(s.players_label)return s.players_label;
+  const a=[...new Set(s.players||[])].sort((x,y)=>x-y),g=[];
+  a.forEach(n=>{const l=g[g.length-1];if(l&&n===l[l.length-1]+1)l.push(n);else g.push([n]);});
+  return g.length?g.map(l=>l.length>1?`${l[0]}–${l[l.length-1]}`:`${l[0]}`).join(' · ')+'명':'';}
+function episodeCards(){
+  const list=catalog.scenarios||[{id:catalog.id,title:catalog.title,summary:catalog.summary,status:'available'}],first=list.find(epReady);
+  return list.map(s=>{const ok=epReady(s),pl=epPlayers(s);
+    return `<label class="ep${ok?'':' off'}"><input type="radio" name="scenario" value="${esc(s.id)}" ${s===first?'checked':''} ${ok?'':'disabled'}><span class="ep-card"><span class="ep-top"><span class="ep-stamp">${esc(s.stamp||'CASE FILE')}</span>${s.genre?`<span class="ep-genre">${esc(s.genre)}</span>`:''}<span class="ep-state${ok?' on':''}">${ok?'플레이 가능':'준비 중'}</span></span><b class="ep-title">${esc(s.title)}</b>${s.tagline?`<span class="ep-line">${esc(s.tagline)}</span>`:''}${s.summary?`<span class="ep-syn">${esc(s.summary)}</span>`:''}${pl||s.duration?`<span class="ep-meta">${pl?`<span><small>권장 인원</small>${esc(pl)}</span>`:''}${s.duration?`<span><small>예상 시간</small>${esc(s.duration)}</span>`:''}</span>`:''}</span></label>`;}).join('');}
+
 function landing(){clearTimeout(pollTimer);state=null;lastSig='';chatSig='';chatOpen=false;primed=false;$('#chat').classList.remove('open');$('#fab').hidden=true;document.body.dataset.mode='home';applyTheme();
 const invite=new URLSearchParams(location.search).get('room')||'';
 $('#app').innerHTML=`${topbar('머더 미스터리','PLAY WITH FRIENDS')}<main class="wrap">
-<section class="brand-hero"><div class="hero-eyebrow"><span class="live-dot"></span> MOBILE MURDER MYSTERY</div><div class="hero-title">친구들과 함께<br><em>진실을 밝혀보세요.</em></div><p class="hero-copy">각자의 역할과 숨겨진 단서.<br>대화하고, 의심하고, 마지막 추리를 완성하는 모바일 추리 게임.</p><div class="hero-tags"><span>2인 테스트 가능</span><span>6–8인 정식 플레이</span><span>진행자 없이</span></div><div class="hero-art"><div class="art-ring"></div><div class="art-file"><span>CASE</span><b>01</b><small>THE TRUTH IS HIDDEN</small></div><div class="art-chip chip-a">🔎 단서</div><div class="art-chip chip-b">♟ 용의자</div><div class="art-chip chip-c">?</div></div>
-<button class="btn hero-start" data-action="tutorial">게임 방식 먼저 보기 <span>↗</span></button></section>
-<section class="howto"><b>처음이세요?</b><span>게임이 어떻게 진행되는지 1분이면 알 수 있어요.</span><button class="btn sm" data-action="tutorial">게임 설명 보기</button></section>
-${session?`<div class="stagebar"><div><b>진행하던 사건실이 있어요</b><small>${esc(session.code)} · 이 기기에서 참여 중인 방입니다.</small></div><button class="btn sm" data-action="resume">이어하기</button></div>`:''}
-<section class="paper"><h2>새로운 사건</h2><form id="create-form"><label for="scenario">플레이할 에피소드</label><select id="scenario" name="scenario">${(catalog.scenarios||[{id:catalog.id,title:catalog.title,summary:catalog.summary,status:"available"}]).map(s=>`<option value="${esc(s.id)}" ${s.status!=="available"?"disabled":""}>${esc(s.title)}${s.status!=="available"?" · 준비 중":""}</option>`).join("")}</select><p class="hint">에피소드를 선택하고 친구들과 함께 사건을 시작해보세요.</p><label for="create-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="create-name" name="name" maxlength="24" required placeholder="예: 하연"><div class="two"><div><label for="size">함께할 인원</label><select id="size" name="size"><option value="2">2명 (테스트)</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div><div><label for="pace">진행 속도</label><select id="pace" name="pace"><option value="normal">여유롭게 · 약 50분</option><option value="quick">빠르게 · 약 25분</option></select></div></div><button class="btn" type="submit">사건실 만들기 →</button></form></section>
+<section class="brand-hero${session?' compact':''}"><div class="hero-eyebrow"><span class="live-dot"></span> MOBILE MURDER MYSTERY</div><div class="hero-title">친구들과 함께<br><em>진실을 밝혀보세요.</em></div><p class="hero-copy">각자의 역할과 숨겨진 단서로<br>대화하고 추리하는 모바일 게임.</p><div class="hero-tags"><span>친구들과 플레이</span><span>진행자 없이 플레이</span><span>에피소드 선택 가능</span></div>${session?'':'<div class="hero-art"><div class="art-ring"></div><div class="art-file"><span>CASE</span><b>01</b><small>THE TRUTH IS HIDDEN</small></div><div class="art-chip chip-a">🔎 단서</div><div class="art-chip chip-b">♟ 용의자</div><div class="art-chip chip-c">?</div></div>'}</section>
+<section class="lp-flow" aria-label="게임 진행 방식"><div class="lp-flow-head"><span class="mini-kicker">HOW TO PLAY</span><h2>이렇게 진행돼요</h2></div><ol class="lp-steps">${FLOW.map(([n,ic,t])=>`<li><span class="lp-ic" aria-hidden="true">${ic}</span><span class="lp-n">${n}</span><b>${t}</b></li>`).join('')}</ol><button class="btn ghost lp-more" type="button" data-action="tutorial">게임 방법 자세히 보기 <span aria-hidden="true">→</span></button></section>
+${session?`<div class="stagebar lp-resume"><div><b>진행하던 사건실이 있어요</b><small>${esc(session.code)} · 이 기기에서 참여 중인 방입니다.</small></div><button class="btn sm" data-action="resume">이어하기</button></div>`:''}
+<section class="paper lp-case"><span class="lp-tab">NEW CASE</span><h2>새로운 사건</h2><form id="create-form"><fieldset class="ep-pick"><legend>플레이할 에피소드</legend>${episodeCards()}</fieldset><label for="create-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="create-name" name="name" maxlength="24" required placeholder="예: 하연"><div class="two"><div><label for="size">함께할 인원</label><select id="size" name="size"><option value="2">2명 (테스트)</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div><div><label for="pace">진행 속도</label><select id="pace" name="pace"><option value="normal">여유롭게 · 약 50분</option><option value="quick">빠르게 · 약 25분</option></select></div></div><button class="btn" type="submit">사건실 만들기 →</button></form></section>
 <section class="paper"><h2>초대받은 사건</h2><form id="join-form"><label for="join-code">8자리 초대 코드</label><input id="join-code" name="code" maxlength="8" minlength="8" required value="${esc(invite)}" placeholder="예: AB23CD45" autocomplete="off"><label for="join-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="join-name" name="name" maxlength="24" required placeholder="예: 하연"><button class="btn" type="submit">초대 코드로 입장 →</button></form></section>
-<section class="rules-section"><div class="rules-heading"><div><span class="mini-kicker">HOW TO PLAY</span><h2>게임은 이렇게 진행돼요</h2></div><span class="rules-time">약 25–50분</span></div><div class="rule-flow">${[
-('01','🎭','역할 선택','각자 인물이 됩니다','2인 테스트는 윤 큐레·백 평론으로 협력하고, 정식 플레이는 6–8명이 각자 역할을 맡아요.'),
-('02','📖','캐릭터북 읽기','나만 아는 이야기가 있어요','내 이야기와 시간표, 비밀, 개인 미션을 확인하고 다른 사람에게 무엇을 말할지 정해요.'),
-('03','🔎','조사하고 대화하기','단서를 모아 퍼즐을 맞춰요','내 단서는 무료로 확인하고, 다른 인물의 봉인된 단서는 조사 토큰으로 열 수 있어요.'),
-('04','🗣️','단서 공유하기','공개할지, 숨길지 선택해요','단서를 모두에게 공개하거나 특정 플레이어에게만 공유해 추리를 좁혀가요.'),
-('05','🧩','최종 추리','네 가지 질문에 답해요','범인·살해 방법·동기·사건의 핵심을 선택해 제출하면 진상이 공개돼요.')
-].map(([n,ic,t,sub,desc])=>`<article class="rule-card"><div class="rule-number">${n}</div><div class="rule-icon">${ic}</div><div class="rule-content"><h3>${t}</h3><b>${sub}</b><p>${desc}</p></div></article>`).join('')}</div><div class="rule-note"><span>💡</span><p><b>진행자도, 별도 준비물도 필요 없어요.</b><br>방을 만든 사람이 초대 코드를 보내면 친구들이 각자 휴대폰으로 접속해 함께 플레이할 수 있어요.</p></div></section>
 ${acc('개인정보 및 데이터 안내','<p>이름과 대화는 같은 방의 참가자에게만 제공됩니다. 귓속말은 송수신자에게만 표시되며 서버에 저장됩니다. 방과 기록은 생성 7일 후 삭제됩니다. 실명 대신 닉네임을 사용해도 됩니다. 음성·영상 통화는 지원하지 않습니다.</p>')}
-<div class="foot">${esc(catalog.title)} · PLAYABLE BETA</div></main>`;
-if(!saved.get('nr-tutorial-seen'))showTutorial(0);}
+<div class="foot">${esc(catalog.title)} · PLAYABLE BETA</div></main>`;}
 async function enter(s){session=s;saved.set('nr-session',s);state=null;tab='story';lastSig='';chatSig='';primed=false;notifiedMsg=0;notifiedEv=0;newShared=0;lastSeenMsg=saved.get('nr-seen:'+draftKey(),0);await poll();window.scrollTo({top:0,behavior:'instant'});}
 
 /* ================= 대기실 ================= */
@@ -283,8 +299,8 @@ function showOverlay(prev,next){
   $('#overlay').innerHTML=`<div class="rov"><div class="rov-in">${prev&&prev!=='lobby'?`<div class="rov-end">${esc(nm(prev))} 종료</div>`:''}<div class="rov-stamp">${esc(nm(next))}</div><div class="rov-sub">시작</div><div class="rov-desc">${esc(PHASE_DESC[next]||'')}</div>${g?`<div class="rov-guide"><h4>이번 단계에서 할 일</h4><ol>${g.steps.map(s=>`<li>${fmt(s)}</li>`).join('')}</ol><div class="rov-agree"><b>다음 단계로 넘어가려면</b>${fmt(g.agree)}</div></div><div class="rov-btns"><button class="btn" data-action="rov-go" data-id="${g.tab}">${esc(g.cta)}</button><button class="btn ghost" data-action="rov-close">닫고 직접 볼게요</button></div>`:'<button class="btn" data-action="rov-close">확인</button>'}</div></div>`;
   try{navigator.vibrate?.([80,40,80]);}catch{}}
 function showTutorial(i=0){
-  const slides=catalog?.tutorial||[];if(!slides.length)return;i=Math.max(0,Math.min(slides.length-1,i));const s=slides[i],last=i===slides.length-1;
-  $('#tutorial').innerHTML=`<div class="tut" role="dialog" aria-modal="true" aria-label="게임 설명"><div class="tut-card"><button class="tut-skip" data-action="tut-close">건너뛰기 ✕</button><div class="tut-step">${i+1} / ${slides.length}</div><div class="tut-ic" aria-hidden="true">${s.icon}</div><h2>${esc(s.title)}</h2><div class="tut-lines">${s.lines.map(l=>`<p>${fmt(l)}</p>`).join('')}</div><div class="tut-dots">${slides.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div><div class="tut-nav"><button class="btn ghost" data-action="tut-go" data-id="${i-1}" ${i?'':'disabled'}>이전</button>${last?(notifAskable()?'<button class="btn" data-action="tut-notif">🔔 알림 켜고 시작</button>':'<button class="btn" data-action="tut-close">시작하기</button>'):`<button class="btn" data-action="tut-go" data-id="${i+1}">다음</button>`}</div>${last&&notifAskable()?'<button class="tut-link" data-action="tut-close">알림 없이 시작</button>':''}</div></div>`;
+  const slides=HOWTO,n=slides.length;i=Math.max(0,Math.min(n-1,i));tutIdx=i;const s=slides[i],last=i===n-1,two=v=>String(v).padStart(2,'0');
+  $('#tutorial').innerHTML=`<div class="tut" role="dialog" aria-modal="true" aria-label="게임 방법"><div class="tut-card"><button class="tut-x" data-action="tut-close" aria-label="닫기">✕</button><div class="tut-step">STEP ${two(i+1)}<span> / ${two(n)}</span></div><div class="tut-ic" aria-hidden="true">${s.icon}</div><h2>${esc(s.title)}</h2><div class="tut-lines">${s.lines.map(l=>`<p>${rich(l)}</p>`).join('')}</div>${last?`<p class="tut-note">${esc(HOWTO_NOTE)}</p>`:''}<div class="tut-dots" aria-label="${i+1} / ${n} 단계">${slides.map((_,k)=>`<button type="button" class="${k===i?'on':''}" data-action="tut-go" data-id="${k}" aria-label="${k+1}단계로 이동" ${k===i?'aria-current="step"':''}></button>`).join('')}</div><div class="tut-nav"><button class="btn ghost" data-action="tut-go" data-id="${i-1}" ${i?'':'disabled'}>이전</button>${last?(notifAskable()?'<button class="btn" data-action="tut-notif">🔔 알림 켜고 시작</button>':'<button class="btn" data-action="tut-close">시작하기</button>'):`<button class="btn" data-action="tut-go" data-id="${i+1}">다음</button>`}</div>${last?(notifAskable()?'<button class="tut-link" data-action="tut-close">알림 없이 시작</button>':''):'<button class="tut-link" data-action="tut-close">건너뛰기</button>'}</div></div>`;
   $('#tutorial').classList.add('on');}
 function closeTutorial(){saved.set('nr-tutorial-seen',1);$('#tutorial').classList.remove('on');$('#tutorial').innerHTML='';}
 
@@ -308,8 +324,10 @@ async function copy(text){try{await navigator.clipboard.writeText(text);toast('�
 /* ================= 이벤트 ================= */
 document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.hasAttribute('data-slot')){missing.add(t.getAttribute('src'));const wide=t.closest('.slot.wide');if(wide)(wide.closest('.im')||wide).remove();else t.remove();}},true);
 document.addEventListener('visibilitychange',()=>{if(state)markUnread();});
+document.addEventListener('keydown',e=>{if(!$('#tutorial').classList.contains('on'))return;if(e.key==='Escape')closeTutorial();else if(e.key==='ArrowRight')showTutorial(tutIdx+1);else if(e.key==='ArrowLeft')showTutorial(tutIdx-1);});
 document.addEventListener('click',async event=>{
   unlockAudio();
+  if(event.target.classList?.contains('tut')){closeTutorial();return;}
   const img=event.target.closest('.clue .slot>img,.bookhead .slot>img,.invhead .slot>img');if(img){$('#zoomimg').src=img.src;$('#zoom').classList.add('on');return;}
   const button=event.target.closest('[data-action]');if(!button)return;const action=button.dataset.action,id=button.dataset.id;
   if(action==='zoom-close'){$('#zoom').classList.remove('on');return;}
