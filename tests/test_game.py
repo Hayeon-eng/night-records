@@ -50,6 +50,13 @@ class GameTests(unittest.TestCase):
         p=self.start();s=self.act(p[1],'state');self.assertEqual(s['book']['id'],'operator')
         self.assertTrue(all(not c['readable'] for c in s['clues'] if c['owner']!='operator'))
         self.assertTrue(all(c['readable'] for c in s['clues'] if c['owner']=='operator'))
+    def test_room_pins_registered_scenario(self):
+        room=self.e.create('에피소드 선택',6,'normal',S.ID)
+        state=self.e.mutate(room['code'],room['token'],'state')
+        self.assertEqual(state['scenario'],S.ID)
+        self.assertEqual(state['scenario_meta']['id'],S.ID)
+        with self.assertRaises(GameError):
+            self.e.create('잘못된 에피소드',6,'normal','not-registered')
     def test_auth_cross_room(self):
         p=self.start();other=self.e.create('다른 사람',6,'quick')
         for token in ['',other['token'],'bogus']:
