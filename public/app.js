@@ -65,20 +65,20 @@ const invite=new URLSearchParams(location.search).get('room')||'';
 $('#app').innerHTML=`${topbar('밤의 기록','NIGHT RECORDS')}<main class="wrap">${titleblk('CASE FILE · 6–8명 · 진행자 없음')}
 <section class="howto"><b>처음이세요?</b><span>게임이 어떻게 진행되는지 1분이면 알 수 있어요.</span><button class="btn sm" data-action="tutorial">게임 설명 보기</button></section>
 ${session?`<div class="stagebar"><div><b>진행하던 사건실이 있어요</b><small>${esc(session.code)} · 이 기기에서 참여 중인 방입니다.</small></div><button class="btn sm" data-action="resume">이어하기</button></div>`:''}
-<section class="paper"><h2>새로운 사건</h2><form id="create-form"><label for="create-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="create-name" name="name" maxlength="24" required placeholder="예: 하연"><div class="two"><div><label for="size">함께할 인원</label><select id="size" name="size"><option value="2">2명 (테스트)</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div><div><label for="pace">진행 속도</label><select id="pace" name="pace"><option value="normal">여유롭게 · 약 50분</option><option value="quick">빠르게 · 약 25분</option></select></div></div><button class="btn" type="submit">사건실 만들기 →</button></form></section>
+<section class="paper"><h2>새로운 사건</h2><form id="create-form"><label for="scenario">플레이할 에피소드</label><select id="scenario" name="scenario">${(catalog.scenarios||[{id:catalog.id,title:catalog.title,summary:catalog.summary,status:"available"}]).map(s=>`<option value="${esc(s.id)}" ${s.status!=="available"?"disabled":""}>${esc(s.title)}${s.status!=="available"?" · 준비 중":""}</option>`).join("")}</select><p class="hint">새로운 사건은 에피소드별로 추가될 예정이에요. 현재 플레이할 수 있는 사건은 1개입니다.</p><label for="create-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="create-name" name="name" maxlength="24" required placeholder="예: 하연"><div class="two"><div><label for="size">함께할 인원</label><select id="size" name="size"><option value="2">2명 (테스트)</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div><div><label for="pace">진행 속도</label><select id="pace" name="pace"><option value="normal">여유롭게 · 약 50분</option><option value="quick">빠르게 · 약 25분</option></select></div></div><button class="btn" type="submit">사건실 만들기 →</button></form></section>
 <section class="paper"><h2>초대받은 사건</h2><form id="join-form"><label for="join-code">8자리 초대 코드</label><input id="join-code" name="code" maxlength="8" minlength="8" required value="${esc(invite)}" placeholder="예: AB23CD45" autocomplete="off"><label for="join-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="join-name" name="name" maxlength="24" required placeholder="예: 하연"><button class="btn" type="submit">초대 코드로 입장 →</button></form></section>
 <div class="section-h"><span>안내</span></div>${acc('게임 규칙',list(catalog.rules))}${acc('데이터 안내','<p>이름과 대화는 같은 방의 참가자에게만 제공됩니다. 귓속말은 송수신자에게만 표시되며 서버에 저장됩니다. 방과 기록은 생성 7일 후 삭제됩니다. 실명 대신 닉네임을 사용해도 됩니다. 음성·영상 통화는 지원하지 않습니다.</p>')}
 <div class="foot">${esc(catalog.title)} · PLAYABLE BETA</div></main>`;
 if(!saved.get('nr-tutorial-seen'))showTutorial(0);}
-async function enter(s){session=s;saved.set('nr-session',s);state=null;tab='story';lastSig='';chatSig='';primed=false;notifiedMsg=0;notifiedEv=0;newShared=0;lastSeenMsg=saved.get('nr-seen:'+draftKey(),0);await poll();}
+async function enter(s){session=s;saved.set('nr-session',s);state=null;tab='story';lastSig='';chatSig='';primed=false;notifiedMsg=0;notifiedEv=0;newShared=0;lastSeenMsg=saved.get('nr-seen:'+draftKey(),0);await poll();window.scrollTo({top:0,behavior:'instant'});}
 
 /* ================= 대기실 ================= */
 function roleCard(r){const member=memberByRole(r.id),mine=member?.id===state.me.id,off=member&&!mine||state.size===6&&!r.required;
 return `<div class="flip ${flipped.has(r.id)?'flipped':''} ${mine?'isme':''}" id="card-${r.id}"><button class="face front idb" data-action="flip" data-id="${r.id}" aria-label="${esc(r.name)} 소개 열기"><div class="strip ${fCls(r.faction)}"><span>${esc(catalog.strip||'CASE FILE')}</span><span>${esc(r.faction)}</span></div><div class="hole"></div><div class="body">${slot('photos',r.id)}<div><div class="nm">${esc(r.name)}</div><div class="gp">${esc(r.title)}${r.required?'':' · 추가 역할'}${member?`<br><span class="rl">${esc(member.name)}</span>`:''}</div></div></div><div class="bar"></div>${mine?'<span class="lk ok">내 캐릭터</span>':member?'<span class="lk">선택됨</span>':''}<span class="tapme">탭 → 소개</span></button><div class="face back"><div class="bh"><span>${esc(r.name)} · ${esc(r.title)}</span><button class="x" data-action="flip" data-id="${r.id}" aria-label="닫기">×</button></div><div class="bb">${P(r.teaser)}<div class="hint">${fmt(r.public)}</div><button class="btn ${mine?'ghost':''}" data-action="role" data-id="${r.id}" ${off?'disabled':''}>${mine?'내가 선택한 역할':member?esc(member.name)+' 님이 선택':'이 캐릭터로 시작'}</button></div></div></div>`;}
-function invitePanel(){return `<section class="invite"><div class="iv-k">초대 코드 · 친구에게 알려 주세요</div><div class="iv-code" aria-label="초대 코드">${esc(state.code)}</div><div class="iv-btns"><button class="btn sm" data-action="copy-code">코드 복사</button><button class="btn sm" data-action="invite">초대 링크 복사</button>${navigator.share?'<button class="btn sm ghost" data-action="share-invite">공유하기</button>':''}</div><p class="iv-h">${state.size}명이 모두 모여 역할을 고르고 “준비 완료”를 누르면 자동으로 시작해요.</p></section>`;}
+function invitePanel(){return `<section class="invite invite-primary" aria-label="친구 초대"><div class="iv-eyebrow">ROOM CREATED · 친구 초대</div><div class="iv-k">친구에게 이 코드를 보내주세요</div><div class="iv-code" aria-label="초대 코드">${esc(state.code)}</div><div class="iv-btns"><button class="btn sm iv-copy" data-action="copy-code">초대 코드 복사</button><button class="btn sm ghost" data-action="invite">초대 링크 복사</button>${navigator.share?'<button class="btn sm ghost" data-action="share-invite">공유하기</button>':''}</div><p class="iv-h">코드 또는 링크를 카톡방에 보내면 친구들이 바로 입장할 수 있어요.</p><div class="iv-next">${state.members.length}/${state.size}명 입장 · 모두 모이면 역할을 선택하고 게임을 시작해요</div></section>`;}
 function notifBar(){if(!('Notification' in window)||Notification.permission!=='default'||saved.get('nr-notif-dismiss'))return '';return `<div class="notifbar"><span>🔔 친구가 채팅을 보내면 알려드릴까요?</span><button class="btn sm" data-action="notif-ask">알림 켜기</button><button class="nx" data-action="notif-dismiss" aria-label="닫기">×</button></div>`;}
 function lobby(){const miss=state.size<6?[]:state.roles.filter(r=>r.required&&!state.members.some(m=>m.role===r.id));
-return `${titleblk('CASE FILE · 대기실')}${invitePanel()}${notifBar()}
+return `${invitePanel()}${titleblk('CASE FILE · 대기실')}${notifBar()}
 <div class="members">${state.members.map(m=>{const r=m.role?roleOf(m.role):null;return `<span class="member ${m.ready?'ready':''}"><b>${esc(m.name)}</b>${r?' → '+esc(r.name):''} · ${m.ready?'준비 완료':r?'역할 선택':'입장'}${m.online?'':' · 자리 비움'}</span>`;}).join('')}</div>
 ${acc('사건 소개',catalog.intro.map(p=>P(p)).join(''))}${acc('진행 방법',list(state.rules))}
 <div class="section-h"><span>오늘 밤, 어떤 인물이 될까요?</span><small>카드를 눌러 소개 확인</small></div><div class="grid">${state.roles.map(roleCard).join('')}</div>
@@ -281,7 +281,7 @@ function closeTutorial(){saved.set('nr-tutorial-seen',1);$('#tutorial').classLis
 
 /* ================= 상태 루프 ================= */
 function update(data){
-  const prior=state?.phase;state=data;clockOffset=state.server_now*1000-Date.now();
+  const prior=state?.phase;state=data;if(state.scenario_meta)catalog={...catalog,...state.scenario_meta};clockOffset=state.server_now*1000-Date.now();
   if(prior&&prior!==state.phase){lastSig='';
     if(state.phase==='ending')tab='ending';
     else{if(state.phase==='intro')tab='story';else if(state.phase!=='final')tab='evidence';accOpen.add('guide-'+state.phase);showOverlay(prior,state.phase);}}
@@ -294,7 +294,7 @@ function update(data){
 function updateClock(){const el=$('#clock');if(!el||!state)return;if(!state.deadline){el.textContent=state.phase==='ending'?'CLOSED':'LOBBY';return;}const left=Math.max(0,Math.ceil((state.deadline*1000-Date.now()-clockOffset)/1000));el.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');}
 async function poll(){clearTimeout(pollTimer);if(!session)return;try{const data=await api(`rooms/${session.code}/state`);connected=true;session.member_id=data.me.id;saved.set('nr-session',session);update(data);}catch(e){connected=false;const el=$('#connection');if(el){el.classList.add('off');el.textContent='● 재연결 중';}else{toast(e.message);landing();return;}}pollTimer=setTimeout(poll,document.hidden?4000:2500);}
 async function act(action,body={}){if(busy)return false;busy=true;try{const data=await api(`rooms/${session.code}/${action}`,body);connected=true;if(action==='leave'){saved.set('nr-session',null);session=null;landing();}else update(data);return true;}catch(e){toast(e.message);return false;}finally{busy=false;}}
-async function copy(text){try{await navigator.clipboard.writeText(text);toast('복사했습니다.');}catch{const d=$('#confirm');$('#confirm-title').textContent='아래 내용을 길게 눌러 복사해주세요';$('#confirm-text').textContent=text;d.showModal();}}
+async function copy(text){try{await navigator.clipboard.writeText(text);toast('복사했습니다. 친구에게 바로 보내세요!');return true;}catch{const d=$('#confirm');$('#confirm-title').textContent='아래 내용을 길게 눌러 복사해주세요';$('#confirm-text').textContent=text;d.showModal();return false;}}
 
 /* ================= 이벤트 ================= */
 document.addEventListener('error',e=>{const t=e.target;if(t.tagName==='IMG'&&t.hasAttribute('data-slot')){missing.add(t.getAttribute('src'));const wide=t.closest('.slot.wide');if(wide)(wide.closest('.im')||wide).remove();else t.remove();}},true);
@@ -326,7 +326,7 @@ document.addEventListener('click',async event=>{
   if(action==='inv'){invTarget=id;renderRoom();return;}
   if(action==='archive'){archiveId=id;renderRoom();return;}
   if(action==='home'){if(state&&!await confirmInPage('시작 화면으로 갈까요?','방은 유지됩니다. 시작 화면의 ‘이어하기’로 돌아올 수 있어요.'))return;landing();return;}
-  if(action==='copy-code'){await copy(state.code);return;}
+  if(action==='copy-code'){const ok=await copy(state.code);if(ok){button.textContent='복사 완료 ✓';button.classList.add('copied');setTimeout(()=>{if(button.isConnected){button.textContent='초대 코드 복사';button.classList.remove('copied');}},2200);}return;}
   if(action==='invite'){await copy(location.origin+'/?room='+state.code);return;}
   if(action==='share-invite'){try{await navigator.share({title:catalog.title,text:`${catalog.title} 초대 코드 ${state.code}`,url:location.origin+'/?room='+state.code});}catch{}return;}
   if(action==='chat-open'||action==='chat-close'){setChat(action==='chat-open');return;}
@@ -353,7 +353,7 @@ document.addEventListener('submit',async e=>{
   try{
     if(form.id==='create-form'||form.id==='join-form'){
       if(session&&!await confirmInPage('새로운 방으로 입장할까요?','이 기기에서는 한 번에 하나의 방에만 참여할 수 있어요. 새 방으로 들어가면 지금 방으로는 이 기기로 돌아올 수 없습니다.'))return;
-      const result=form.id==='create-form'?await api('rooms',{name:values.name,size:Number(values.size),pace:values.pace}):await api(`rooms/${values.code.trim().toUpperCase()}/join`,{name:values.name});await enter(result);
+      const result=form.id==='create-form'?await api('rooms',{name:values.name,size:Number(values.size),pace:values.pace,scenario:values.scenario||catalog.default_scenario||catalog.id}):await api(`rooms/${values.code.trim().toUpperCase()}/join`,{name:values.name});await enter(result);
     }else if(form.id==='chat-form'){
       const text=values.text.trim();if(!text)return;const data=await api(`rooms/${session.code}/chat`,{text,to:chatTarget||null});$('#chat-input').value='';update(data);
     }else if(form.id==='share-form'){

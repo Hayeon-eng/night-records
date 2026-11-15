@@ -2594,3 +2594,16 @@ dialog .acts button[value=cancel]{border-radius:12px;color:#5F596B;border-color:
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* 초대코드가 대기실 진입 즉시 가장 먼저 보이도록 */
+.invite-primary{position:relative;margin:10px 0 22px;padding:22px 18px 18px;text-align:center;border:1px solid rgba(221,190,205,.42);background:linear-gradient(135deg,rgba(91,57,83,.94),rgba(36,34,57,.96) 72%);box-shadow:0 18px 42px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.14);}
+.invite-primary .iv-eyebrow{font:700 10px var(--mono);letter-spacing:.18em;color:#D9B9C8;margin-bottom:9px}
+.invite-primary .iv-k{font-size:14px;font-weight:700;color:#F7EDF2}
+.invite-primary .iv-code{font-size:clamp(34px,8vw,46px);line-height:1.2;letter-spacing:.19em;margin:12px 0 16px;text-shadow:0 2px 18px rgba(0,0,0,.2)}
+.invite-primary .iv-btns{gap:9px}
+.invite-primary .iv-btns .btn{min-height:42px;padding-inline:15px}
+.invite-primary .iv-copy{background:#F3E8ED;color:#332638;border-color:#F3E8ED;font-weight:800}
+.invite-primary .iv-copy.copied{background:#D5E9DF;color:#183C2B;border-color:#D5E9DF}
+.invite-primary .iv-h{margin:13px 0 0;font-size:12px;line-height:1.55;color:#D8D1E0}
+.invite-primary .iv-next{margin-top:15px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);font-size:12px;font-weight:700;color:#E8D9E3}
+@media(max-width:420px){.invite-primary{padding:19px 13px 15px}.invite-primary .iv-code{letter-spacing:.13em}.invite-primary .iv-btns .btn{flex:1 1 42%;}}
