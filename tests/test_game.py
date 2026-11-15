@@ -15,8 +15,8 @@ class GameTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.now=1_000_000.;self.e=Engine(Path(self.tmp.name)/'rooms.sqlite3',lambda:self.now)
     def tearDown(self):self.tmp.cleanup()
-    def make(self,size=6):
-        first=self.e.create('첫 참가자',size,'normal');people=[first]
+    def make(self,size=6,scenario_id=S.ID):
+        first=self.e.create('첫 참가자',size,'normal',scenario_id);people=[first]
         for i in range(1,size):people.append(self.e.mutate(first['code'],'','join',{'name':f'친구 {i}'}))
         return people
     def act(self,p,action,body=None):return self.e.mutate(p['code'],p['token'],action,body)
@@ -58,7 +58,7 @@ class GameTests(unittest.TestCase):
         with self.assertRaises(GameError):
             self.e.create('잘못된 에피소드',6,'normal','not-registered')
     def test_auth_cross_room(self):
-        p=self.start();other=self.e.create('다른 사람',6,'quick')
+        p=self.start();other=self.e.create('다른 사람',6,'quick',S.ID)
         for token in ['',other['token'],'bogus']:
             with self.assertRaises(GameError) as err:self.e.mutate(p[0]['code'],token,'state')
             self.assertEqual(err.exception.status,401)
@@ -109,7 +109,7 @@ class GameTests(unittest.TestCase):
         with self.assertRaises(GameError):self.act(p[0],'role',{'role':'friend'})
         with self.assertRaises(GameError):self.act(p[0],'leave')
     def test_optional_cannot_displace_mandatory(self):
-        p=self.make(7);self.act(p[0],'role',{'role':'hr'})
+        p=self.make(7,'last-approval-v1');self.act(p[0],'role',{'role':'hr'})
         with self.assertRaises(GameError):self.act(p[1],'role',{'role':'finance'})
     def test_timers_missing_submission_and_persistence(self):
         p=self.start();self.now+=301;self.e.tick_all();self.assertEqual(self.act(p[0],'state')['phase'],'r1')
@@ -127,7 +127,7 @@ class GameTests(unittest.TestCase):
         self.assertEqual(s['result']['grade'],'unresolved')
         self.assertEqual(set(s['result']['leaders']),{'planner','auditor'})
     def test_names_safe_as_data_and_role_ids_stable(self):
-        p=self.e.create('<img src=x onerror=x>',6,'normal');s=self.act(p,'state')
+        p=self.e.create('<img src=x onerror=x>',6,'normal',S.ID);s=self.act(p,'state')
         self.assertEqual(s['me']['name'],'<img src=x onerror=x>')
         self.assertEqual(s['roles'][0]['id'],'planner')
     def test_required_paths_present(self):
