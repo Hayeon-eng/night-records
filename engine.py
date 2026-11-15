@@ -7,12 +7,15 @@ import secrets
 import time
 from pathlib import Path
 import scenario as S
+from scenario_registry import get_scenario, DEFAULT_SCENARIO_ID
 from store import SqliteStore
 
 class GameError(Exception):
     def __init__(self, message, status=400):
         super().__init__(message); self.status=status
 
+# Scenario-specific identifiers are resolved from each room, never process-global.
+# Backward-compatible exports for existing tests/tools; runtime rooms resolve their own scenario.
 PHASE_IDS=[p[0] for p in S.PHASES]
 ROLE_IDS={r['id'] for r in S.ROLES}
 REQUIRED={r['id'] for r in S.ROLES if r['required']}
@@ -49,15 +52,17 @@ class Engine:
     def __init__(self, store='data/game.sqlite3', clock=time.time):
         # store: 경로(문자열/Path)면 SQLite, load/save 를 가진 객체면 그대로 사용 (store.py)
         self.clock=clock;self.store=store if hasattr(store,'load') else SqliteStore(store);self.path=getattr(self.store,'path',None)
-    def create(self,name,size,pace):
+    def create(self,name,size,pace,scenario_id=None):
         name=clean(name,24,'이름')
         if type(size) is not int or size not in (2,6,7,8): raise GameError('정원은 6~8명입니다.')
         if pace not in ('normal','quick'): raise GameError('진행 속도를 선택해주세요.')
+        scenario = get_scenario(scenario_id)
+        if scenario is None: raise GameError('선택한 에피소드를 찾을 수 없습니다.',404)
         token=secrets.token_urlsafe(32); mid=secrets.token_hex(8); now=self.clock()
         for _ in range(20):
             # 사람이 읽을 수 있는 초대 코드이며 참가자 인증 정보가 아니다.
             code=''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ23456789') for _ in range(8))
-            room=dict(code=code,size=size,pace=pace,scenario=S.ID,phase='lobby',deadline=None,version=1,
+            room=dict(code=code,size=size,pace=pace,scenario=scenario.ID,phase='lobby',deadline=None,version=1,
                       created=now,members=[self.new_member(mid,name,token,now)],votes=[],claims={},shares={},events=[],ev_seq=0,messages=[],submissions={},result=None)
             self.system(room,'사건실이 열렸습니다. 초대 코드를 친구에게 전달해주세요.')
             if self.store.save(code,room,None):return dict(code=code,token=token,member_id=mid)
@@ -85,12 +90,13 @@ class Engine:
         for _ in range(12):  # 동시에 같은 방을 고치면 한쪽이 다시 읽고 재시도한다.
             loaded=self.store.load(code)
             if not loaded:raise GameError('방을 찾을 수 없습니다.',404)
-            room,rev=loaded;room.setdefault('events',[]);room.setdefault('shares',{});room.setdefault('ev_seq',0)
+            room,rev=loaded;room.setdefault('scenario',DEFAULT_SCENARIO_ID);room.setdefault('events',[]);room.setdefault('shares',{});room.setdefault('ev_seq',0)
             result,dirty=self._apply(room,code,token,action,body)
             if not dirty or self.store.save(code,room,rev):return result
         raise GameError('요청이 한꺼번에 몰렸습니다. 잠시 후 다시 시도해주세요.',409)
     def _apply(self,room,code,token,action,body):
         v0=room['version'];self.tick(room);moved=room['version']!=v0
+        S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]; ROLE_IDS={r['id'] for r in S.ROLES}; REQUIRED={r['id'] for r in S.ROLES if r['required']}; CLUES={c['id']:c for c in S.CLUES}
         if action=='join':
             if room['phase']!='lobby':raise GameError('이미 시작한 방입니다.',409)
             if len(room['members'])>=room['size']:raise GameError('정원이 찼습니다.',409)
@@ -171,10 +177,16 @@ class Engine:
         out=dict(ok=True) if action=='leave' else self.project(room,m)
         # 상태 조회는 시간이 흐르거나 접속 표시가 오래됐을 때만 저장한다(저장소 요청 수 절감).
         return out,(action!='state' or moved or stale)
+    @staticmethod
+    def scenario(room):
+        scenario = get_scenario(room.get('scenario'))
+        if scenario is None: raise GameError('이 방의 에피소드 버전을 찾을 수 없습니다.',500)
+        return scenario
     def tick(self,room):
         # Advance one stage at a time after downtime, giving the resumed group a fresh stage.
         if room['deadline'] and self.clock()>=room['deadline'] and room['phase']!='ending':self.advance(room)
     def advance(self,room):
+        S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]
         idx=PHASE_IDS.index(room['phase'])+1
         if idx>=len(PHASE_IDS):return
         phase,label,minutes=S.PHASES[idx];room['phase']=phase;room['votes']=[];room['version']+=1
@@ -185,7 +197,7 @@ class Engine:
         total={'r1':1,'r2':2,'r3':3,'final':3,'ending':3}.get(room['phase'],0)
         return max(0,total-len(m['acquired']))
     def names(self,room):
-        out={}
+        S=self.scenario(room); out={}
         for r in S.ROLES:
             mem=next((m for m in room['members'] if m['role']==r['id']),None)
             out[r['id']]=out[r['id']+':n']=r['name'];out[r['id']+':t']=r['title'];out[r['id']+':p']=mem['name'] if mem else ''
@@ -196,7 +208,7 @@ class Engine:
         if isinstance(value,dict):return {k:self.render(v,names) for k,v in value.items()}
         return value
     def result(self,room):
-        votes={};scores=[]
+        S=self.scenario(room); votes={};scores=[]
         for m in room['members']:
             sub=room['submissions'].get(m['id']);a=sub['answers'] if sub else {}
             if a.get('culprit'):votes[a['culprit']]=votes.get(a['culprit'],0)+1
@@ -230,6 +242,7 @@ class Engine:
         ending=dict(intro=f(E['intro']),arrest=f(E['arrest']),timeline=[[a,fill(b,nm)] for a,b in S.NIGHT_TIMELINE],truth=f(S.TRUTH),groups=groups,absent=absent,aftermath=f(E['aftermath']),closing=f(E['closing']))
         return dict(grade=grade,title=E['title'],stamp=E['stamp'],text=ending['intro'][0],votes=votes,leaders=leaders,accused=accused,average=round(avg,2),past_solved=past,scores=scores,truth=S.TRUTH,ending=ending)
     def project(self,room,m):
+        S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]; CLUES={c['id']:c for c in S.CLUES}
         names=self.names(room);idx=PHASE_IDS.index(room['phase']);ending=room['phase']=='ending'
         members=[dict(id=x['id'],name=x['name'],role=x['role'],ready=x['ready'],online=self.clock()-x['last_seen']<25,submitted=x['id'] in room['submissions']) for x in room['members']]
         roles=[{k:r[k] for k in ('id','name','title','required','icon','faction','teaser','public')} for r in S.ROLES]
@@ -249,7 +262,7 @@ class Engine:
             to=ev['to'];mine_ev=ev['by']==m['id'];to_me=bool(to) and m['id'] in to;known=to is None or mine_ev or to_me
             events.append(dict(id=ev['id'],by=ev['by'],to=to,all=to is None,mine=mine_ev,to_me=to_me,at=ev['at'],clue=ev['clue'] if known else None,title=CLUES[ev['clue']]['title'] if known else None))
         messages=[v for v in room['messages'] if not v['to'] or v['to']==m['id'] or v['sender']==m['id']][-300:]
-        out=dict(code=room['code'],size=room['size'],pace=room['pace'],version=room['version'],phase=room['phase'],deadline=room['deadline'],server_now=self.clock(),
+        out=dict(code=room['code'],size=room['size'],pace=room['pace'],scenario=room.get('scenario'),scenario_meta=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),tutorial=S.TUTORIAL,guide=S.PHASE_GUIDE),version=room['version'],phase=room['phase'],deadline=room['deadline'],server_now=self.clock(),
                  phases=[dict(id=p[0],title=p[1]) for p in S.PHASES],members=members,roles=roles,votes=room['votes'],
                  me=dict(id=m['id'],name=m['name'],role=m['role'],ready=m['ready'],tokens=self.tokens(room,m),submission=room['submissions'].get(m['id'])),
                  clues=clues,events=events,messages=messages,evidence=[e for e in S.EVIDENCE if idx>=PHASE_IDS.index(e['phase'])],

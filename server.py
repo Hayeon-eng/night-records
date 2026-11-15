@@ -14,6 +14,7 @@ from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
 from engine import Engine, GameError
 from store import StoreError, make_store
 import scenario as S
+from scenario_registry import catalog as scenario_catalog, DEFAULT_SCENARIO_ID
 
 ROOT=Path(__file__).parent
 PUBLIC=ROOT/'public'  # 정적 파일. Vercel 에서는 CDN 이 직접 제공하고, 확장자 없는 /img/* 만 이 코드가 처리한다.
@@ -64,10 +65,10 @@ def application(env,start_response):
                 body=json.loads(env['wsgi.input'].read(length))
                 if not isinstance(body,dict):raise GameError('요청 형식이 올바르지 않습니다.')
             if path=='/api/catalog' and method=='GET':
-                data=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),roles=[{k:r[k] for k in ('id','name','title','required','icon','faction','teaser')} for r in S.ROLES],tutorial=S.TUTORIAL,guide=S.PHASE_GUIDE)
+                data=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),roles=[{k:r[k] for k in ('id','name','title','required','icon','faction','teaser')} for r in S.ROLES],tutorial=S.TUTORIAL,guide=S.PHASE_GUIDE,scenarios=scenario_catalog(),default_scenario=DEFAULT_SCENARIO_ID)
             elif path=='/api/rooms' and method=='POST':
                 limited(('create',ip),15,3600)
-                data=engine.create(body.get('name'),body.get('size'),body.get('pace','normal'))
+                data=engine.create(body.get('name'),body.get('size'),body.get('pace','normal'),body.get('scenario',DEFAULT_SCENARIO_ID))
             else:
                 parts=path.strip('/').split('/')
                 if len(parts)!=4 or parts[:2]!=['api','rooms']:raise GameError('경로를 찾을 수 없습니다.',404)
