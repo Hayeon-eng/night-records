@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
 from engine import Engine, GameError
 from store import StoreError, make_store
-import scenario as S
-from scenario_registry import catalog as scenario_catalog, DEFAULT_SCENARIO_ID
+from scenario_registry import catalog as scenario_catalog, get_scenario, DEFAULT_SCENARIO_ID
+S=get_scenario(DEFAULT_SCENARIO_ID)
 
 ROOT=Path(__file__).parent
 PUBLIC=ROOT/'public'  # 정적 파일. Vercel 에서는 CDN 이 직접 제공하고, 확장자 없는 /img/* 만 이 코드가 처리한다.

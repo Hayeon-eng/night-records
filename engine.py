@@ -54,7 +54,7 @@ class Engine:
         self.clock=clock;self.store=store if hasattr(store,'load') else SqliteStore(store);self.path=getattr(self.store,'path',None)
     def create(self,name,size,pace,scenario_id=None):
         name=clean(name,24,'이름')
-        if type(size) is not int or size not in (2,6,7,8): raise GameError('정원은 6~8명입니다.')
+        if type(size) is not int or size not in (2,6,7,8): raise GameError('정원은 2명 테스트 또는 6~8명입니다.')
         if pace not in ('normal','quick'): raise GameError('진행 속도를 선택해주세요.')
         scenario = get_scenario(scenario_id)
         if scenario is None: raise GameError('선택한 에피소드를 찾을 수 없습니다.',404)
@@ -97,6 +97,7 @@ class Engine:
     def _apply(self,room,code,token,action,body):
         v0=room['version'];self.tick(room);moved=room['version']!=v0
         S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]; ROLE_IDS={r['id'] for r in S.ROLES}; REQUIRED={r['id'] for r in S.ROLES if r['required']}; CLUES={c['id']:c for c in S.CLUES}
+        REQUIRED = set(getattr(S, 'REQUIRED_BY_SIZE', {}).get(room['size'], REQUIRED))
         if action=='join':
             if room['phase']!='lobby':raise GameError('이미 시작한 방입니다.',409)
             if len(room['members'])>=room['size']:raise GameError('정원이 찼습니다.',409)
@@ -113,11 +114,12 @@ class Engine:
             if room['phase']!='lobby':raise GameError('시작 후에는 역할을 바꿀 수 없습니다.')
             rid=body.get('role')
             if rid not in ROLE_IDS:raise GameError('역할을 확인해주세요.')
-            if room['size']==6 and rid not in REQUIRED:raise GameError('6인 방에서는 필수 역할을 선택해주세요.')
+            if room['size'] in getattr(S, 'REQUIRED_BY_SIZE', {}) and rid not in REQUIRED:
+                raise GameError('이 테스트/인원 구성에서 선택할 수 없는 역할입니다.')
             if any(x['role']==rid and x['id']!=m['id'] for x in room['members']):raise GameError('이미 선택된 역할입니다.',409)
             # Guarantee there are enough unfilled slots for all mandatory roles.
             assigned=[rid if x['id']==m['id'] else x['role'] for x in room['members']]
-            missing=0 if room['size']<6 else len(REQUIRED-set(assigned));free=room['size']-len([v for v in assigned if v])
+            missing=len(REQUIRED-set(assigned)) if room['size']>=6 else 0;free=room['size']-len([v for v in assigned if v])
             if missing>free:raise GameError('남은 자리는 필수 역할을 위해 비워두어야 합니다.')
             m['role']=rid;m['ready']=False
         elif action=='ready':
@@ -166,11 +168,11 @@ class Engine:
             if m['id'] in room['submissions']:raise GameError('이미 제출한 답안입니다.',409)
             answer=body.get('answers',{})
             if not isinstance(answer,dict):raise GameError('답안을 확인해주세요.')
-            for q in S.QUESTIONS:
+            for q in self.scenario(room).QUESTIONS:
                 if answer.get(q['id']) not in [o['id'] for o in q['options']]:raise GameError('네 항목 모두 선택해주세요.')
             note=body.get('note','')
             if not isinstance(note,str) or len(note)>2000:raise GameError('추리 근거는 2000자 이내입니다.')
-            room['submissions'][m['id']]=dict(answers={q['id']:answer[q['id']] for q in S.QUESTIONS},note=note.strip())
+            room['submissions'][m['id']]=dict(answers={q['id']:answer[q['id']] for q in self.scenario(room).QUESTIONS},note=note.strip())
             if len(room['submissions'])==len(room['members']):self.advance(room)
         elif action!='state':raise GameError('지원하지 않는 동작입니다.',404)
         if action!='state':room['version']+=1
@@ -215,7 +217,7 @@ class Engine:
             marks={k:a.get(k)==v for k,v in S.ANSWERS.items()}
             scores.append(dict(member=m['id'],role=m['role'],score=sum(marks.values()),marks=marks,submitted=bool(sub),answers=a,note=sub['note'] if sub else '미제출'))
         high=max(votes.values(),default=0);leaders=[r for r,n in votes.items() if n==high]
-        justice=leaders==['planner'];avg=sum(s['score'] for s in scores)/len(scores)
+        culprit_role=getattr(S, 'CULPRIT_ROLE', 'planner');justice=leaders==[culprit_role];avg=sum(s['score'] for s in scores)/len(scores)
         past=sum(s['marks']['past'] for s in scores)>len(scores)/2
         grade='unresolved' if len(leaders)!=1 else 'bad' if not justice else 'perfect' if avg>=3.5 and past else 'true' if avg>=2.5 else 'normal'
         E=S.ENDING[grade];accused=leaders[0] if len(leaders)==1 else None;nm=self.names(room)
@@ -223,7 +225,7 @@ class Engine:
         f=lambda v:fill(v,nm) if isinstance(v,str) else [fill(x,nm) for x in v]
         culprit,right,wrong=[],[],[]
         for s in scores:
-            if s['role']=='planner':s['epilogue']=S.PLANNER_FATE[0 if justice else 1];culprit.append(s['member'])
+            if s['role']==culprit_role:s['epilogue']=S.PLANNER_FATE[0 if justice else 1];culprit.append(s['member'])
             elif s['role'] in S.FATE:
                 s['epilogue']=S.FATE[s['role']][0 if s['marks']['culprit'] else 1];(right if s['marks']['culprit'] else wrong).append(s['member'])
             else:s['epilogue']=''
@@ -245,7 +247,8 @@ class Engine:
         S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]; CLUES={c['id']:c for c in S.CLUES}
         names=self.names(room);idx=PHASE_IDS.index(room['phase']);ending=room['phase']=='ending'
         members=[dict(id=x['id'],name=x['name'],role=x['role'],ready=x['ready'],online=self.clock()-x['last_seen']<25,submitted=x['id'] in room['submissions']) for x in room['members']]
-        roles=[{k:r[k] for k in ('id','name','title','required','icon','faction','teaser','public')} for r in S.ROLES]
+        required_for_size=set(getattr(S, 'REQUIRED_BY_SIZE', {}).get(room['size'], {r['id'] for r in S.ROLES if r['required']}))
+        roles=[{**{k:r[k] for k in ('id','name','title','icon','faction','teaser','public')},'required':r['id'] in required_for_size} for r in S.ROLES]
         clues=[];shares=room.get('shares',{})
         for c in S.CLUES:
             claim=room['claims'].get(c['id']);grants=shares.get(c['id'],{}).get('grants',{})
