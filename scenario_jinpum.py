@@ -72,6 +72,8 @@ TRUTH=[
 ]
 DEPENDENCIES={'culprit':['e1','e3','auction-2'],'method':['e1','e3'],'motive':['auction-2','owner-3'],'past':['e2','e4','unknown-1']}
 THEME='noir';STAMP='EPISODE 01';STRIP='AUTHENTICITY FILE'
+GENRE='아트 미스터리'  # 시작 화면 에피소드 카드용 메타데이터 (스포일러 금지)
+TAGLINE='100억 원짜리 유작은 진짜일까. 그리고 누가 대표를 죽였을까?'
 TUTORIAL=[
  dict(icon='🕵️',title='사건을 해결하는 방법',lines=['각자 사건 속 인물이 되어 강 대표의 죽음과 《침묵의 정원》의 진실을 추리합니다.','2인 테스트에서는 윤 큐레와 백 평론이 협력해 사건을 해결합니다.']),
  dict(icon='🎭',title='내 캐릭터',lines=['캐릭터북에서 이야기·시간표·비밀·미션을 확인하세요.','내가 아는 사실과 추측을 구분하고, 다른 사람에게 질문해보세요.']),
