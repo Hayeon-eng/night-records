@@ -2769,3 +2769,23 @@ dialog .acts button[value=cancel]{border-radius:12px;color:#5F596B;border-color:
 .rb .btn.mine,.rb .btn.mine:disabled{opacity:1;background:rgba(127,215,181,.16);border:1px solid rgba(127,215,181,.55);color:#BDF0DC;box-shadow:none}
 .rb .btn.taken,.rb .btn.taken:disabled{opacity:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);color:#C9C5DA;box-shadow:none}
 @media(max-width:360px){.idb.rc .nm{font-size:17px}.idb.rc .slot{width:40px;height:50px}}
+
+
+/* ===== 진품명품 v2: 인물 책(소제목·가이드 목록) · 공용 증거 질문 · 배점 · 봉인 기록 보기 ===== */
+.story h3.sec{margin:22px 0 8px;font-size:14px;letter-spacing:-.02em}
+.story h3.sec:first-child{margin-top:4px}
+.gl{margin:0;padding:0;list-style:none}
+.gl li{position:relative;padding:6px 0 6px 16px;font-size:14px;line-height:1.7;word-break:keep-all}
+.gl li:before{content:"";position:absolute;left:2px;top:16px;width:5px;height:5px;border-radius:50%;background:#8F86F0}
+.asks{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(108,97,208,.09)}
+.asks b{display:block;font-size:12px;color:#4A3F96}
+.asks ul{margin:6px 0 0;padding-left:18px}
+.asks li{font-size:13px;line-height:1.6;color:#4F4A58;word-break:keep-all}
+.pts{margin-left:6px;padding:2px 8px;border-radius:999px;background:#ECE8F7;color:#4A3F96;font-size:11px;font-weight:700;vertical-align:middle}
+.invlist.ro{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.inv-ro{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(255,255,255,.06);color:#E8E5F3;min-width:0}
+.inv-ro .slot{width:36px;height:44px;flex:0 0 auto}
+.inv-ro b{display:block;font-size:14px;color:#fff}
+.inv-ro small{display:block;font-size:11px;line-height:1.4;color:#B8B5C9;word-break:keep-all}
+
+.clue .cf .btn{white-space:nowrap;flex:0 0 auto}

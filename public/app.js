@@ -14,6 +14,7 @@ const MODES={story:'me',time:'me',secret:'me',memo:'me',deduce:'me',clues:'inv',
 const MODEBAR={story:['🔒','내 화면 · 본인 외에는 보여주지 마세요'],time:['🔒','내 화면 · 본인 외에는 보여주지 마세요'],secret:['🔒','내 화면 · 본인 외에는 보여주지 마세요'],memo:['🔒','내 메모 · 이 기기에만 저장됩니다'],deduce:['🔒','내 추리 · 제출 전까지 본인만 봅니다'],
   clues:['🕵','조사 · 내 단서와 다른 인물의 단서'],board:['🗂','단서 · 공개된 단서만 모여 있어요'],evidence:['📁','공용 증거 · 단계마다 모두에게 자동 공개되는 현장 자료'],ending:['📖','엔딩 · 모든 기록이 공개되었습니다'],archive:['📖','전체 기록 · 모든 캐릭터북']};
 const TAB_HELP={clues:'내 단서는 무료로 읽고, 다른 인물의 봉인된 단서는 조사 토큰으로 열어요. 열어 본 단서는 “공개하기”로 알릴 수 있어요.',board:'누군가 공개해 준 단서만 모여요. 내가 가진 단서와 직접 조사한 단서는 조사 탭에 있어요.',evidence:'단계마다 시스템이 모두에게 자동으로 공개하는 현장 자료예요. 인물별 “단서”와는 다릅니다.'};
+const TH=k=>state?.scenario_meta?.tab_help?.[k]||TAB_HELP[k];
 const draftKey=()=>session?`${session.code}:${session.member_id}`:'';
 const cineKey=()=>'nr-cine:'+draftKey();
 const visKey=()=>`nr-vis:${draftKey()}:${state?.phase}`;
@@ -67,9 +68,9 @@ const FLOW=[['01','🎭','역할 선택'],['02','📖','캐릭터북 확인'],['
 const HOWTO=[
   {icon:'🎭',title:'각자의 역할을 선택해요',lines:['친구들과 사건실에 입장한 뒤 **각자 원하는 캐릭터**를 선택해요.','캐릭터마다 **직업, 성격, 관계, 사건과 얽힌 이야기**가 달라요.']},
   {icon:'📖',title:'나만의 캐릭터북을 읽어요',lines:['**나에게만 공개되는 캐릭터북**을 확인해요.','공개된 이야기뿐 아니라 **개인적인 비밀, 사건 당일의 시간표, 개인 미션**이 포함될 수 있어요.','다른 사람에게 무엇을 공개하고 숨길지는 **각자의 선택**이에요.']},
-  {icon:'🔎',title:'단서를 조사해요',lines:['내가 가진 단서는 **자유롭게** 확인할 수 있어요.','다른 인물의 봉인된 단서는 **조사 토큰**을 사용해 조사해요.','조사 결과는 **먼저 조사한 사람에게만** 공개돼요.']},
+  {icon:'🔎',title:'봉인 기록을 공개해요',lines:['내가 가진 **봉인 기록**은 자유롭게 확인할 수 있어요.','**정보공개 토큰**을 쓰면 봉인 기록을 모두에게 공개할 수 있어요.','한번 공개한 기록은 되돌릴 수 없어요. **언제 공개할지**가 핵심이에요.']},
   {icon:'🗣️',title:'대화하고 단서를 공유해요',lines:['**공개 채팅 또는 귓속말**로 친구들과 정보를 주고받아요.','단서는 **모두에게** 공개하거나 **특정 플레이어에게만** 공유할 수 있어요.','누가 진실을 말하고 누가 무언가를 숨기는지 추리해요.']},
-  {icon:'🧩',title:'최종 추리를 제출해요',lines:['모든 조사가 끝나면 **범인, 범행 방법, 동기** 등 사건의 핵심 질문에 답해요.','추리 결과가 모이면 **사건의 진상과 각 인물의 이야기**가 공개돼요.','마지막에 **내 추리가 얼마나 정확했는지** 확인할 수 있어요.']}
+  {icon:'🧩',title:'최종 추리를 제출해요',lines:['모든 조사가 끝나면 **범인, 범행 도구, 동기** 등 사건의 핵심 질문에 답해요.','추리 결과가 모이면 **사건의 진상과 각 인물의 이야기**가 공개돼요.','마지막에 **내 추리가 얼마나 정확했는지** 확인할 수 있어요.']}
 ];
 const HOWTO_NOTE='※ 에피소드에 따라 인원수, 조사 방식, 세부 규칙은 달라질 수 있어요.';
 let tutIdx=0;
@@ -91,7 +92,7 @@ $('#app').innerHTML=`${topbar('머더 미스터리','PLAY WITH FRIENDS')}<main c
 <section class="brand-hero${session?' compact':''}"><div class="hero-eyebrow"><span class="live-dot"></span> MOBILE MURDER MYSTERY</div><div class="hero-title">친구들과 함께<br><em>진실을 밝혀보세요.</em></div><p class="hero-copy">각자의 역할과 숨겨진 단서로<br>대화하고 추리하는 모바일 게임.</p><div class="hero-tags"><span>친구들과 플레이</span><span>진행자 없이 플레이</span><span>에피소드 선택 가능</span></div>${session?'':'<div class="hero-art"><div class="art-ring"></div><div class="art-file"><span>CASE</span><b>01</b><small>THE TRUTH IS HIDDEN</small></div><div class="art-chip chip-a">🔎 단서</div><div class="art-chip chip-b">♟ 용의자</div><div class="art-chip chip-c">?</div></div>'}</section>
 <section class="lp-flow" aria-label="게임 진행 방식"><div class="lp-flow-head"><span class="mini-kicker">HOW TO PLAY</span><h2>이렇게 진행돼요</h2></div><ol class="lp-steps">${FLOW.map(([n,ic,t])=>`<li><span class="lp-ic" aria-hidden="true">${ic}</span><span class="lp-n">${n}</span><b>${t}</b></li>`).join('')}</ol><button class="btn ghost lp-more" type="button" data-action="tutorial">게임 방법 자세히 보기 <span aria-hidden="true">→</span></button></section>
 ${session?`<div class="stagebar lp-resume"><div><b>진행하던 사건실이 있어요</b><small>${esc(session.code)} · 이 기기에서 참여 중인 방입니다.</small></div><button class="btn sm" data-action="resume">이어하기</button></div>`:''}
-<section class="paper lp-case"><span class="lp-tab">NEW CASE</span><h2>새로운 사건</h2><form id="create-form"><fieldset class="ep-pick"><legend>플레이할 에피소드</legend>${episodeCards()}</fieldset><label for="create-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="create-name" name="name" maxlength="24" required placeholder="예: 하연"><div class="two"><div><label for="size">함께할 인원</label><select id="size" name="size"><option value="2">2명 (테스트)</option><option value="6">6명</option><option value="7">7명</option><option value="8">8명</option></select></div><div><label for="pace">진행 속도</label><select id="pace" name="pace"><option value="normal">여유롭게 · 약 50분</option><option value="quick">빠르게 · 약 25분</option></select></div></div><button class="btn" type="submit">사건실 만들기 →</button></form></section>
+<section class="paper lp-case"><span class="lp-tab">NEW CASE</span><h2>새로운 사건</h2><form id="create-form"><fieldset class="ep-pick"><legend>플레이할 에피소드</legend>${episodeCards()}</fieldset><label for="create-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="create-name" name="name" maxlength="24" required placeholder="예: 하연"><div class="two"><div><label for="size">함께할 인원</label><select id="size" name="size">${(((catalog.scenarios||[])[0]||{}).players||[2,6,7,8]).map(n=>`<option value="${n}">${n===2?'2명 (테스트)':n+'명'}</option>`).join('')}</select></div><div><label for="pace">진행 속도</label><select id="pace" name="pace"><option value="normal">여유롭게 · 약 85분</option><option value="quick">빠르게 · 약 45분</option></select></div></div><button class="btn" type="submit">사건실 만들기 →</button></form></section>
 <section class="paper"><h2>초대받은 사건</h2><form id="join-form"><label for="join-code">8자리 초대 코드</label><input id="join-code" name="code" maxlength="8" minlength="8" required value="${esc(invite)}" placeholder="예: AB23CD45" autocomplete="off"><label for="join-name">내 이름 또는 닉네임 (친구들이 알아볼 이름)</label><input id="join-name" name="name" maxlength="24" required placeholder="예: 하연"><button class="btn" type="submit">초대 코드로 입장 →</button></form></section>
 ${acc('개인정보 및 데이터 안내','<p>이름과 대화는 같은 방의 참가자에게만 제공됩니다. 귓속말은 송수신자에게만 표시되며 서버에 저장됩니다. 방과 기록은 생성 7일 후 삭제됩니다. 실명 대신 닉네임을 사용해도 됩니다. 음성·영상 통화는 지원하지 않습니다.</p>')}
 <div class="foot">${esc(catalog.title)} · PLAYABLE BETA</div></main>`;}
@@ -99,32 +100,37 @@ async function enter(s){session=s;saved.set('nr-session',s);state=null;tab='stor
 
 /* ================= 대기실 ================= */
 const fIdx=f=>Math.max(0,facs().indexOf(f))%5;
-function roleCard(r){const member=memberByRole(r.id),mine=member?.id===state.me.id,sizeOff=(state.size===6||state.size===2)&&!r.required,off=member&&!mine||sizeOff,fi=fIdx(r.faction);
+function roleCard(r){const member=memberByRole(r.id),mine=member?.id===state.me.id,sizeOff=r.selectable===false,off=member&&!mine||sizeOff,fi=fIdx(r.faction);
 const chip=mine?'<span class="rc-chip me">내 캐릭터</span>':member?'<span class="rc-chip">선택됨</span>':sizeOff?'<span class="rc-chip">참고인</span>':!r.required?'<span class="rc-chip">추가 역할</span>':'';
 const label=mine?'✓ 내가 선택한 역할':member?esc(member.name)+' 님이 선택':sizeOff?'이번 인원에서는 참고인으로 등장해요':'이 캐릭터로 시작';
 return `<div class="flip ${flipped.has(r.id)?'flipped':''} ${mine?'isme':''}" id="card-${r.id}"><button class="face front idb rc${member&&!mine?' taken':''}" data-action="flip" data-id="${r.id}" aria-label="${esc(r.name)} 소개 열기"><span class="rc-top"><span class="rc-fac f${fi}">${esc(r.faction)}</span>${chip}</span><span class="rc-main">${slot('photos',r.id)}<span class="rc-txt"><span class="nm">${esc(r.name)}</span><span class="gp">${esc(r.title)}</span>${member?`<span class="rl">${esc(member.name)}</span>`:''}</span></span><span class="rc-more">소개 보기 <i aria-hidden="true">›</i></span></button><div class="face back rb"><div class="rb-head">${slot('photos',r.id)}<div class="rb-id"><div class="rb-tags"><span class="rc-fac f${fi}">${esc(r.faction)}</span>${chip}</div><div class="nm">${esc(r.name)}</div><div class="gp">${esc(r.title)}</div></div><button class="x" data-action="flip" data-id="${r.id}" aria-label="닫기">×</button></div><div class="rb-body"><div class="rb-sec"><span class="mini-kicker">인물 소개</span>${P(r.teaser)}</div><div class="rb-sec pub"><span class="mini-kicker">공개 소개</span>${P(r.public)}</div><button class="btn${mine?' mine':off?' taken':''}" data-action="role" data-id="${r.id}" ${off?'disabled':''}>${label}</button></div></div></div>`;}
 function invitePanel(){return `<section class="invite invite-primary" aria-label="친구 초대"><div class="iv-eyebrow">ROOM CREATED · 친구 초대</div><div class="iv-k">친구에게 이 코드를 보내주세요</div><div class="iv-code" aria-label="초대 코드">${esc(state.code)}</div><div class="iv-btns"><button class="btn sm iv-copy" data-action="copy-code">초대 코드 복사</button><button class="btn sm ghost" data-action="invite">초대 링크 복사</button>${navigator.share?'<button class="btn sm ghost" data-action="share-invite">공유하기</button>':''}</div><p class="iv-h">코드 또는 링크를 카톡방에 보내면 친구들이 바로 입장할 수 있어요.</p><div class="iv-next">${state.members.length}/${state.size}명 입장 · 모두 모이면 역할을 선택하고 게임을 시작해요</div></section>`;}
 function notifBar(){if(!('Notification' in window)||Notification.permission!=='default'||saved.get('nr-notif-dismiss'))return '';return `<div class="notifbar"><span>🔔 친구가 채팅을 보내면 알려드릴까요?</span><button class="btn sm" data-action="notif-ask">알림 켜기</button><button class="nx" data-action="notif-dismiss" aria-label="닫기">×</button></div>`;}
-function lobby(){const miss=(state.size===2||state.size>=6)?state.roles.filter(r=>r.required&&!state.members.some(m=>m.role===r.id)):[];
+function lobby(){const miss=state.roles.filter(r=>r.required&&!state.members.some(m=>m.role===r.id));
 return `${invitePanel()}${titleblk('CASE FILE · 대기실')}${notifBar()}
 <div class="members">${state.members.map(m=>{const r=m.role?roleOf(m.role):null;return `<span class="member ${m.ready?'ready':''}"><b>${esc(m.name)}</b>${r?' → '+esc(r.name):''} · ${m.ready?'준비 완료':r?'역할 선택':'입장'}${m.online?'':' · 자리 비움'}</span>`;}).join('')}</div>
-${acc('사건 소개',catalog.intro.map(p=>P(p)).join(''))}${acc('진행 방법',list(state.rules))}
+${acc('사건 소개',(state.scenario_meta?.intro||catalog.intro).map(p=>P(p)).join(''))}${acc('진행 방법',list(state.rules))}
 <div class="section-h role-h"><span>오늘 밤, 어떤 인물이 될까요?</span><small>카드를 눌러 소개 확인</small></div><div class="grid">${state.roles.map(roleCard).join('')}</div>
 <div class="stagebar"><div><b>${state.members.filter(m=>m.ready).length}/${state.size}명 준비 완료</b><small>${miss.length?'필수 역할 '+miss.length+'개가 남았습니다.':'모든 필수 역할이 선택됐습니다.'}</small></div><button class="btn sm ${state.me.ready?'ghost':''}" data-action="ready" ${state.me.role?'':'disabled'}>${state.me.ready?'준비 취소':'준비 완료'}</button></div>
 <div class="footbtns"><button class="btn sm" data-action="tutorial">게임 설명 다시 보기</button><button class="btn sm" data-action="leave">대기실 나가기</button></div>`;}
 
 /* ================= 캐릭터북 ================= */
 function bookHead(b){const w=who(b.id);return `<div class="doc book"><div class="bookhead" data-label="${esc(catalog.title)}"><div class="ph"><span class="clip"></span>${slot('photos',b.id)}</div><div><div class="nm">${esc(b.name)}</div><div class="job">${esc(b.title)}</div><div class="meta">${w.real?'플레이어 · '+esc(w.real):'참고인'}</div><div class="mt6">${fBadge(b.faction)}</div></div></div></div>`;}
-const paneStory=b=>`<div class="panel"><h3>공개 소개</h3>${P(b.public)}</div><div class="story">${b.story.map(t=>`<p>${fmt(t)}</p>`).join('')}</div>`;
+const paneStory=b=>`<div class="panel"><h3>공개 소개</h3>${P(b.public)}</div><div class="story">${b.story.map(t=>t.startsWith('## ')?`<h3 class="sec">${esc(t.slice(3))}</h3>`:`<p>${fmt(t)}</p>`).join('')}</div>`;
 const paneTime=b=>`<ul class="tl">${[...b.timeline].sort((a,c)=>(timeKey(a[0])??0)-(timeKey(c[0])??0)).map(([t,d])=>`<li><div class="t">${esc(t)}</div><div class="d">${fmt(d)}</div></li>`).join('')}</ul>`;
-const paneSecret=b=>`<div class="panel c-red"><h3>당신만의 비밀</h3>${P(b.secret)}</div><h3 class="sec">말하기 규칙</h3><div class="lie"><div class="hide"><b>거짓말 · 숨김 허용 범위</b>${fmt(b.lie)}</div></div><h3 class="sec">개인 미션</h3><div class="panel">${P(b.mission)}</div>`;
+const glist=a=>`<ul class="gl">${a.map(t=>`<li>${fmt(t)}</li>`).join('')}</ul>`;
+const paneSecret=b=>{
+  const sec=Array.isArray(b.secret)?b.secret.map(([t,x])=>`<div class="panel c-red"><h3>${esc(t)}</h3>${P(x)}</div>`).join(''):`<div class="panel c-red"><h3>당신만의 비밀</h3>${P(b.secret)}</div>`;
+  const guide=(b.guide||[]).map(([t,a])=>`<h3 class="sec">${esc(t)}</h3><div class="panel">${glist(a)}</div>`).join('');
+  const fin=b.final?`<h3 class="sec">최종 비밀 <small>정답 공개 후 열림</small></h3><div class="panel c-red">${b.final.map(x=>P(x)).join('')}</div>`:'';
+  return `${sec}<h3 class="sec">말하기 규칙</h3><div class="lie"><div class="hide"><b>거짓말 · 숨김 허용 범위</b>${fmt(b.lie)}</div></div>${guide}<h3 class="sec">개인 미션</h3><div class="panel">${P(b.mission)}</div>${fin}`;};
 function paneMemo(){const v=saved.get('nr-memo:'+draftKey(),'');return `<p class="hint">나만 보는 추리 노트입니다. 이 기기에만 저장됩니다.</p><textarea class="memo" id="memo" maxlength="4000" placeholder="누가 무엇을 숨기고 있나요?">${esc(v)}</textarea><div class="savebar"><span class="st" id="memost">저장됨</span></div>`;}
 
 /* ================= 단서 ================= */
 const SHARE_PHASES=['r1','r2','r3','final'];
 function provOf(c){
   const names=ids=>(ids||[]).map(id=>whoMember(id).name).join(', ');
-  if(c.via==='own')return {cls:'v-own',label:'내 단서',detail:c.shared?'모두에게 공개함':c.granted_to?.length?names(c.granted_to)+'에게 공개함':'나만 알고 있어요'};
+  if(c.via==='own')return {cls:'v-own',label:state.scenario_meta?.token_mode==='reveal'?'내 봉인 기록':'내 단서',detail:c.shared?'모두에게 공개함':c.granted_to?.length?names(c.granted_to)+'에게 공개함':'나만 알고 있어요'};
   if(c.via==='investigated')return {cls:'v-inv',label:'내가 조사한 단서',detail:`${who(c.owner).name}의 단서`+(c.shared?' · 모두에게 공개함':c.granted_to?.length?' · '+names(c.granted_to)+'에게 공개함':'')};
   if(c.via==='public')return {cls:'v-pub',label:'모두에게 공개된 단서',detail:c.shared_by?`${whoMember(c.shared_by).name} 공개`:`${who(c.owner).name}의 단서`};
   if(c.via==='granted')return {cls:'v-grant',label:'나에게만 공개된 단서',detail:`${whoMember(c.granted_by).name} → 나`};
@@ -132,31 +138,41 @@ function provOf(c){
 function clueCard(c){
   const n=c.id.split('-').pop(),opened=justOpened.has(c.id),w=who(c.owner),tag=`${esc(w.name)} · ${n}`;
   if(c.readable){const pv=provOf(c),canShare=!c.shared&&(c.own||c.claimed_by===state.me.id)&&SHARE_PHASES.includes(state.phase);
-    return `<div class="clue ${pv.cls} ${opened?'reveal':''}">${opened?'<div class="unseal"><div>OPEN</div></div>':''}<div class="prov ${pv.cls}"><b>${esc(pv.label)}</b><span>${esc(pv.detail)}</span></div><div class="ch"><b>${esc(c.title)}</b><span class="ev">${tag}</span></div><div class="im">${slot('clues',c.id,'wide')}</div><div class="ct">${fmt(c.text)}</div>${canShare?`<div class="cf"><span class="tag">공개 범위를 고를 수 있어요</span><button class="btn sm" data-action="share" data-id="${c.id}">📣 공개하기</button></div>`:''}</div>`;}
+    return `<div class="clue ${pv.cls} ${opened?'reveal':''}">${opened?'<div class="unseal"><div>OPEN</div></div>':''}<div class="prov ${pv.cls}"><b>${esc(pv.label)}</b><span>${esc(pv.detail)}</span></div><div class="ch"><b>${esc(c.title)}</b><span class="ev">${tag}</span></div><div class="im">${slot('clues',c.id,'wide')}</div><div class="ct">${fmt(c.text)}</div>${canShare?`<div class="cf"><span class="tag">${state.scenario_meta?.token_mode==='reveal'?'전체 공개 시 토큰 1개':'공개 범위를 고를 수 있어요'}</span><button class="btn sm" data-action="share" data-id="${c.id}">📣 공개하기</button></div>`:''}</div>`;}
   const taker=c.claimed_by?whoMember(c.claimed_by):null,can=state.me.tokens>0&&['r1','r2','r3'].includes(state.phase);
   return `<div class="clue v-seal ${taker?'taken':''}"><div class="prov v-seal"><b>봉인된 단서</b><span>${esc(w.name)}의 것</span></div><div class="ch"><b>${taker?'조사된 단서':'봉인된 단서'}</b><span class="ev">${tag}</span></div><div class="sealface"><div><span class="seal ${taker?'':'blink'}">${taker?'조사됨':'SEALED'}</span><p>${taker?esc(idPlain(taker))+' 님이 조사했습니다. 공개를 요청해보세요.':'내용은 조사한 사람에게만 공개됩니다.'}</p>${taker?'':`<button class="btn sm" data-action="investigate" data-id="${c.id}" ${can?'':'disabled'}>봉투 뜯기 · 토큰 1개</button>`}</div></div></div>`;}
+function paneReveal(){
+  const total=state.me.tokens_total??0,left=state.me.tokens;
+  const coins=(justSpent?'<span class="coin fly">1</span>':'')+Array.from({length:Math.max(total,left)},(_,i)=>`<span class="coin ${i<left?'':'ghost'}">1</span>`).join('');
+  const mine=state.clues.filter(c=>c.own),others=state.roles.filter(r=>r.id!==state.me.role);
+  const info=r=>{const cs=state.clues.filter(c=>c.owner===r.id);return `${esc(who(r.id).real||'참고인')} · 공개 ${cs.filter(c=>c.readable).length}/${cs.length}`;};
+  return `<p class="tabhelp">${esc(TH('clues'))}</p><div class="tokbar"><span class="lbl">정보공개 토큰 · 모두에게 공개할 때 1개 사용</span><div class="coins">${coins}</div></div>
+<h3 class="sec">내 봉인 기록 <small>나만 열람 · 공개는 내가 결정</small></h3>${mine.map(clueCard).join('')||'<div class="empty">역할을 정하고 사건이 시작되면 봉인 기록이 주어집니다.</div>'}
+<h3 class="sec">다른 인물의 봉인 기록</h3><div class="invlist ro">${others.map(r=>`<div class="inv-ro">${slot('photos',r.id)}<span><b>${esc(r.name)}</b><small>${esc(r.title)}</small><small>${info(r)}</small></span></div>`).join('')}</div><p class="hint">다른 인물의 봉인 기록은 본인이 공개해야만 볼 수 있어요. 공개된 기록은 단서 탭에 모입니다.</p>`;}
 function paneClues(){
+  if(state.scenario_meta?.token_mode==='reveal')return paneReveal();
   const total={r1:1,r2:2,r3:3,final:3,ending:3}[state.phase]||0,left=state.me.tokens;
   const coins=(justSpent?'<span class="coin fly">1</span>':'')+Array.from({length:Math.max(total,left)},(_,i)=>`<span class="coin ${i<left?'':'ghost'}">1</span>`).join('');
   const others=state.roles.filter(r=>r.id!==state.me.role);if(!others.some(r=>r.id===invTarget))invTarget=others[0]?.id||'';
   const t=others.find(r=>r.id===invTarget),mine=state.clues.filter(c=>c.own);
   const info=r=>{const w=who(r.id),cs=state.clues.filter(c=>c.owner===r.id);return `${esc(w.real||'참고인')} · 조사 ${cs.filter(c=>c.claimed_by).length}/${cs.length}`;};
-  return `<p class="tabhelp">${esc(TAB_HELP.clues)}</p><div class="tokbar"><span class="lbl">조사 토큰 · 단계마다 1개 지급</span><div class="coins">${coins}</div></div>
+  return `<p class="tabhelp">${esc(TH('clues'))}</p><div class="tokbar"><span class="lbl">조사 토큰 · 단계마다 1개 지급</span><div class="coins">${coins}</div></div>
 <h3 class="sec">내 단서 <small>토큰 없이 열람</small></h3>${mine.map(clueCard).join('')||'<div class="empty">조사가 시작되면 단서가 공개됩니다.</div>'}
 <h3 class="sec">다른 인물 조사</h3><div class="invlist">${others.map(r=>`<button class="${r.id===invTarget?'on':''}" data-action="inv" data-id="${r.id}">${slot('photos',r.id)}<span><b>${esc(r.name)}</b><small>${esc(r.title)}</small><small>${info(r)}</small></span></button>`).join('')}</div>
 ${t?`<div class="doc invhead"><div class="ph">${slot('photos',t.id)}</div><div><div class="nm">${esc(t.name)}</div><div class="job">${esc(t.title)}</div><div class="meta">${info(t)}</div>${fBadge(t.faction)}</div></div>${state.clues.filter(c=>c.owner===t.id).map(clueCard).join('')}`:''}`;}
 function paneBoard(){
   const pub=state.clues.filter(c=>c.shared&&c.readable),toMe=state.clues.filter(c=>c.readable&&c.granted_by&&!c.shared),byMe=state.clues.filter(c=>c.readable&&c.granted_to?.length&&!c.shared);
   const sec=(t,none,arr)=>`<h3 class="sec">${t} <small>${arr.length}건</small></h3>${arr.length?arr.map(clueCard).join(''):`<div class="empty sm">${none}</div>`}`;
-  return `<p class="tabhelp">${esc(TAB_HELP.board)}</p>${sec('나에게만 공개된 단서','아직 나에게만 건네진 단서는 없어요.',toMe)}${sec('모두에게 공개된 단서','아직 공개된 단서가 없어요. 조사 탭에서 단서를 열고 “공개하기”로 알려 보세요.',pub)}${sec('내가 일부에게 공개한 단서','고른 사람에게만 공개한 단서가 여기에 표시돼요.',byMe)}`;}
-function paneEvidence(){return `<p class="tabhelp">${esc(TAB_HELP.evidence)}</p>`+(state.evidence.length?state.evidence.map(e=>`<div class="clue v-evd"><div class="prov v-evd"><b>공용 증거</b><span>시스템이 모두에게 공개</span></div><div class="ch"><b>${esc(e.title)}</b><span class="ev">${esc(state.phases.find(p=>p.id===e.phase).title)}</span></div><div class="im">${slot('evidence',e.id,'wide')}</div><div class="ct">${fmt(e.text)}</div></div>`).join(''):'<div class="empty">현장 조사 단계부터 공용 증거가 공개됩니다.<br>지금은 자신의 이야기부터 읽어보세요.</div>');}
+  return `<p class="tabhelp">${esc(TH('board'))}</p>${sec('나에게만 공개된 단서','아직 나에게만 건네진 단서는 없어요.',toMe)}${sec('모두에게 공개된 단서','아직 공개된 단서가 없어요. 조사 탭에서 단서를 열고 “공개하기”로 알려 보세요.',pub)}${sec('내가 일부에게 공개한 단서','고른 사람에게만 공개한 단서가 여기에 표시돼요.',byMe)}`;}
+function paneEvidence(){return `<p class="tabhelp">${esc(TH('evidence'))}</p>`+(state.evidence.length?state.evidence.map(e=>`<div class="clue v-evd"><div class="prov v-evd"><b>${e.npc?'NPC 기록':'공용 증거'}</b><span>시스템이 모두에게 공개</span></div><div class="ch"><b>${esc(e.title)}</b><span class="ev">${esc(state.phases.find(p=>p.id===e.phase).title)}</span></div><div class="im">${slot('evidence',e.id,'wide')}</div><div class="ct">${fmt(e.text)}</div>${e.asks?.length?`<div class="asks"><b>생각해볼 질문</b><ul>${e.asks.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}</div>`).join(''):'<div class="empty">현장 조사 단계부터 공용 증거가 공개됩니다.<br>지금은 자신의 이야기부터 읽어보세요.</div>');}
 
 /* ================= 추리 ================= */
 const optLabel=(q,o)=>{if(q.id!=='culprit')return esc(o.label);const r=roleOf(o.id),m=memberByRole(o.id);return `<b>${esc(r.name)}</b> · ${esc(r.title)} <small class="cr">${esc(m?m.name:'참고인')}</small>`;};
 function paneDeduce(){if(!['final','ending'].includes(state.phase))return '<div class="empty">최종 추리 단계에서 답안을 제출합니다.<br>채팅과 단서를 통해 가설을 정리해보세요.</div>';
   if(state.me.submission)return `<div class="locked-note"><span>제출 완료 · 수정 불가</span><span>${state.members.filter(m=>m.submitted).length}/${state.size}명 제출</span></div>${state.questions.map(q=>{const o=q.options.find(o=>o.id===state.me.submission.answers[q.id]);return `<div class="fld"><label>${esc(q.title)}</label><div class="ans">${o?optLabel(q,o):''}</div></div>`;}).join('')}<p class="hint">전원 제출 또는 제한시간 종료 후 진상이 공개됩니다.</p>`;
   const d=drafts[draftKey()]||{};
-  return `<p class="hint">네 가지 선택 항목을 각 1점으로 채점합니다. 시간 종료 시 미제출자는 0점 처리됩니다.</p><form id="deduction-form">${state.questions.map(q=>`<div class="panel"><h3>${esc(q.title)}</h3><div class="opts">${q.options.map(o=>`<label class="chk"><input type="radio" name="${q.id}" value="${o.id}" required ${d[q.id]===o.id?'checked':''}><span>${optLabel(q,o)}</span></label>`).join('')}</div></div>`).join('')}<div class="fld"><label for="ded-note">추리 근거 · 선택 사항</label><textarea id="ded-note" name="note" maxlength="2000" placeholder="어떤 단서를 연결했나요?">${esc(d.note||'')}</textarea></div><div class="alignr"><button class="btn" type="submit">최종 추리 제출</button></div></form>`;}
+  const tot=state.questions.reduce((a,q)=>a+(q.points||0),0);
+  return `<p class="hint">${tot?`항목마다 배점이 다르며 총 ${tot}점입니다.`:'네 가지 선택 항목을 각 1점으로 채점합니다.'} 시간 종료 시 미제출자는 0점 처리됩니다.</p><form id="deduction-form">${state.questions.map(q=>`<div class="panel"><h3>${esc(q.title)}${q.points?` <small class="pts">${q.points}점</small>`:''}</h3><div class="opts">${q.options.map(o=>`<label class="chk"><input type="radio" name="${q.id}" value="${o.id}" required ${d[q.id]===o.id?'checked':''}><span>${optLabel(q,o)}</span></label>`).join('')}</div></div>`).join('')}<div class="fld"><label for="ded-note">추리 근거 · 선택 사항</label><textarea id="ded-note" name="note" maxlength="2000" placeholder="어떤 단서를 연결했나요?">${esc(d.note||'')}</textarea></div><div class="alignr"><button class="btn" type="submit">최종 추리 제출</button></div></form>`;}
 
 /* ================= 엔딩 (연출 + 전체 기록) ================= */
 const cnLines=(arr,start=0,cls='')=>arr.flatMap(sentences).map((t,i)=>`<p class="cn-line ${cls}" data-d="${(start+i*.9).toFixed(2)}">${esc(t)}</p>`).join('');
@@ -166,7 +182,7 @@ function endingSteps(){
   const arrestH={perfect:'범인 검거',true:'범인 검거',normal:'범인 검거',bad:'엉뚱한 지목',unresolved:'판결 보류'}[r.grade];
   const rows=state.members.map(m=>{const s=r.scores.find(x=>x.member===m.id),a=s?.answers?.culprit;return {w:m.role?who(m.role):{name:m.name,real:''},to:a?roleOf(a):null};});
   const d0=.5+rows.length*.6+.4;
-  out.push({id:'jury',cls:'jury',html:`<div class="cn-k">VERDICT</div><h2 class="cn-h">배심원단의 판결</h2><div class="cn-votes">${rows.map((x,i)=>`<div class="cn-vote cn-line" data-d="${(.5+i*.6).toFixed(2)}"><span class="who">${idInline(x.w)}</span><i>→</i><span class="to">${x.to?`<b class="cn">${esc(x.to.name)}</b> <small class="cr">${esc(x.to.title)}</small>`:'<span class="abst">기권</span>'}</span></div>`).join('')}</div><div class="cn-stamp ${esc(r.grade)} cn-line" data-d="${d0.toFixed(2)}">${esc(r.stamp)}</div><div class="cn-grade cn-line" data-d="${(d0+.5).toFixed(2)}">${esc(r.title)}</div><div class="cn-sub cn-line" data-d="${(d0+.9).toFixed(2)}">전원 평균 ${r.average} / 4</div>`});
+  out.push({id:'jury',cls:'jury',html:`<div class="cn-k">VERDICT</div><h2 class="cn-h">배심원단의 판결</h2><div class="cn-votes">${rows.map((x,i)=>`<div class="cn-vote cn-line" data-d="${(.5+i*.6).toFixed(2)}"><span class="who">${idInline(x.w)}</span><i>→</i><span class="to">${x.to?`<b class="cn">${esc(x.to.name)}</b> <small class="cr">${esc(x.to.title)}</small>`:'<span class="abst">기권</span>'}</span></div>`).join('')}</div><div class="cn-stamp ${esc(r.grade)} cn-line" data-d="${d0.toFixed(2)}">${esc(r.stamp)}</div><div class="cn-grade cn-line" data-d="${(d0+.5).toFixed(2)}">${esc(r.title)}</div><div class="cn-sub cn-line" data-d="${(d0+.9).toFixed(2)}">전원 평균 ${r.average} / ${r.max_score||4}</div>`});
   out.push({id:'intro',cls:'intro',html:`<div class="cn-k">VERDICT</div><h2 class="cn-h">판결이 말해 주는 것</h2>${cnLines(E.intro,.3)}`});
   out.push({id:'arrest',cls:'arrest',html:`<div class="cn-k">ARREST</div><h2 class="cn-h">${arrestH}</h2>${cnLines(E.arrest,.3,'cn-scene')}`});
   const tl=[...E.timeline].sort((a,b)=>(timeKey(a[0])??0)-(timeKey(b[0])??0)),dt=.3+E.truth.flatMap(sentences).length*.9+.3;
@@ -176,13 +192,13 @@ function endingSteps(){
   for(const g of E.groups){fh+=`<h3 class="cn-g cn-line" data-d="${d.toFixed(2)}">${label[g.kind]}</h3>`;d+=.5;
     if(g.link){fh+=`<p class="cn-line cn-link" data-d="${d.toFixed(2)}">${esc(g.link)}</p>`;d+=.6;}
     for(const id of g.members){const s=r.scores.find(x=>x.member===id),m=memberById(id),w=m?.role?who(m.role):{name:m?.name||'',title:'',real:''};
-      fh+=`<div class="cn-card cn-line" data-d="${d.toFixed(2)}"><div class="cn-who">${idInline(w,true)}<em>${s.score}/4</em></div>${P(s.epilogue,'cn-p')}</div>`;d+=.6;}}
+      fh+=`<div class="cn-card cn-line" data-d="${d.toFixed(2)}"><div class="cn-who">${idInline(w,true)}<em>${s.score}/${r.max_score||4}</em></div>${P(s.epilogue,'cn-p')}</div>`;d+=.6;}}
   if(E.absent.length){fh+=`<h3 class="cn-g cn-line" data-d="${d.toFixed(2)}">그 밤 자리에 없던 사람들</h3>`;d+=.5;
     for(const a of E.absent){fh+=`<div class="cn-card cn-line" data-d="${d.toFixed(2)}"><div class="cn-who"><b class="cn">${esc(roleOf(a.role).name)}</b> <span class="cj">${esc(roleOf(a.role).title)}</span><em>참고인</em></div>${a.lines.map(l=>P(l,'cn-p')).join('')}</div>`;d+=.6;}}
   out.push({id:'fates',cls:'fates',html:fh});
   const da=.3+E.aftermath.flatMap(sentences).length*.9+.4;
   out.push({id:'after',cls:'after',html:`<div class="cn-k">AFTER</div><h2 class="cn-h">그 후</h2>${cnLines(E.aftermath,.3)}${cnClose(E.closing,da)}`});
-  out.push({id:'end',cls:'end',html:`<div class="cn-k">THE END</div><div class="cn-stamp ${esc(r.grade)}">${esc(r.stamp)}</div><div class="cn-grade">${esc(r.title)}</div><div class="cn-sub">전원 평균 ${r.average} / 4 · 답안 ${r.scores.filter(s=>s.submitted).length}/${state.size}명 제출</div>${cnClose(E.closing,.4)}<div class="cn-btns"><button class="btn" data-action="cine-close">전체 기록 보러 가기</button><button class="btn ghost" data-action="cine-replay">처음부터 다시 보기</button></div>`});
+  out.push({id:'end',cls:'end',html:`<div class="cn-k">THE END</div><div class="cn-stamp ${esc(r.grade)}">${esc(r.stamp)}</div><div class="cn-grade">${esc(r.title)}</div><div class="cn-sub">전원 평균 ${r.average} / ${r.max_score||4} · 답안 ${r.scores.filter(s=>s.submitted).length}/${state.size}명 제출</div>${cnClose(E.closing,.4)}<div class="cn-btns"><button class="btn" data-action="cine-close">전체 기록 보러 가기</button><button class="btn ghost" data-action="cine-replay">처음부터 다시 보기</button></div>`});
   return out;}
 const applyDelays=root=>root.querySelectorAll('[data-d]').forEach(e=>e.style.setProperty('--d',e.dataset.d+'s'));
 function startCine(){if(!state?.result)return;cineOn=true;cineStep=0;renderCine();}
@@ -191,11 +207,11 @@ function renderCine(){const steps=endingSteps(),s=steps[cineStep],last=cineStep=
   applyDelays($('#cine'));$('#cine').classList.add('on');document.body.classList.add('cine-open');$('#cn-body')?.focus({preventScroll:true});}
 function closeCine(){cineOn=false;saved.set(cineKey(),true);$('#cine').classList.remove('on');$('#cine').innerHTML='';document.body.classList.remove('cine-open');tab='ending';lastSig='';renderRoom();window.scrollTo(0,0);}
 function paneEnding(){const r=state.result;if(!r)return '';
-  return `<div class="cn-top"><div class="cn-stamp ${esc(r.grade)}">${esc(r.stamp)}</div><div class="cn-grade">${esc(r.title)}</div><div class="cn-sub">전원 평균 ${r.average} / 4 · 답안 ${r.scores.filter(s=>s.submitted).length}/${state.size}명 제출</div><button class="btn" data-action="cine-replay">▶ 엔딩 연출 다시 보기</button></div>
+  return `<div class="cn-top"><div class="cn-stamp ${esc(r.grade)}">${esc(r.stamp)}</div><div class="cn-grade">${esc(r.title)}</div><div class="cn-sub">전원 평균 ${r.average} / ${r.max_score||4} · 답안 ${r.scores.filter(s=>s.submitted).length}/${state.size}명 제출</div><button class="btn" data-action="cine-replay">▶ 엔딩 연출 다시 보기</button></div>
 <div class="cn-static">${endingSteps().filter(s=>s.id!=='end').map(s=>`<section class="cn-sec ${s.cls}">${s.html}</section>`).join('')}</div>
-<h3 class="sec">점수</h3><div class="bars">${r.scores.map(s=>{const m=memberById(s.member),w=m?.role?who(m.role):{name:m?.name||'',real:''};return `<div class="bar-row"><span>${idInline(w)}</span><i class="s${s.score}"></i><b>${s.score}</b></div>`;}).join('')}</div>
-<h3 class="sec">제출 답안과 정답</h3>${r.scores.map(s=>{const m=memberById(s.member),w=m?.role?who(m.role):{name:m?.name||'',title:'',real:''};return `<details class="ansdet"><summary><span>${idInline(w,true)}</span><em>${s.score} / 4</em></summary>${state.questions.map(q=>{const o=q.options.find(o=>o.id===s.answers[q.id]);return `<p>${esc(q.title)}<br>${s.marks[q.id]?'✓':'✕'} ${o?optLabel(q,o):'미제출'}</p>`;}).join('')}<p>근거: ${esc(s.note||'미작성')}</p></details>`;}).join('')}
-<details><summary class="hint">집단 판정 기준</summary><p class="hint">단독 최다 득표가 진범이면 평균 점수로 NORMAL·TRUE·PERFECT를 판정합니다. TRUE는 평균 2.5 이상, PERFECT는 평균 3.5 이상이면서 과반수가 과거 사건을 맞혔을 때입니다. 동률 또는 무투표는 판결 보류입니다. 미제출자도 평균의 분모에 포함됩니다.</p></details>`;}
+<h3 class="sec">점수</h3><div class="bars">${r.scores.map(s=>{const m=memberById(s.member),w=m?.role?who(m.role):{name:m?.name||'',real:''};return `<div class="bar-row"><span>${idInline(w)}</span><i class="s${Math.round(s.score/(r.max_score||4)*4)}"></i><b>${s.score}</b></div>`;}).join('')}</div>
+<h3 class="sec">제출 답안과 정답</h3>${r.scores.map(s=>{const m=memberById(s.member),w=m?.role?who(m.role):{name:m?.name||'',title:'',real:''};return `<details class="ansdet"><summary><span>${idInline(w,true)}</span><em>${s.score} / ${r.max_score||4}</em></summary>${state.questions.map(q=>{const o=q.options.find(o=>o.id===s.answers[q.id]);return `<p>${esc(q.title)}<br>${s.marks[q.id]?'✓':'✕'} ${o?optLabel(q,o):'미제출'}</p>`;}).join('')}<p>근거: ${esc(s.note||'미작성')}</p></details>`;}).join('')}
+<details><summary class="hint">집단 판정 기준</summary><p class="hint">${esc(state.scenario_meta?.scoring_note||'단독 최다 득표가 진범이면 평균 점수로 NORMAL·TRUE·PERFECT를 판정합니다. TRUE는 평균 2.5 이상, PERFECT는 평균 3.5 이상이면서 과반수가 과거 사건을 맞혔을 때입니다. 동률 또는 무투표는 판결 보류입니다. 미제출자도 평균의 분모에 포함됩니다.')}</p></details>`;}
 function paneArchive(){const b=state.archive.find(x=>x.id===archiveId)||state.archive[0];
   return `<p class="hint">모든 인물의 원래 이야기가 열렸습니다. 조사 탭에서 모든 단서도 읽을 수 있어요.</p><div class="invlist">${state.archive.map(r=>`<button class="${r.id===b.id?'on':''}" data-action="archive" data-id="${r.id}">${slot('photos',r.id)}<span><b>${esc(r.name)}</b><small>${esc(r.title)}</small><small>${esc(who(r.id).real||'참고인')}</small></span></button>`).join('')}</div>${bookHead(b)}<h3 class="sec">이야기</h3>${paneStory(b)}<h3 class="sec">시간표</h3>${paneTime(b)}<h3 class="sec">비밀</h3>${paneSecret(b)}`;}
 
@@ -203,15 +219,16 @@ function paneArchive(){const b=state.archive.find(x=>x.id===archiveId)||state.ar
 /* ================= 공개 대화상자 · 방 화면 ================= */
 function openShare(cid){const c=state.clues.find(x=>x.id===cid);if(!c)return;const others=state.members.filter(m=>m.id!==state.me.id),done=new Set(c.granted_to||[]);
   $('#share-title').textContent=`“${c.title}”`;
-  $('#share-list').innerHTML=`<label class="chk all"><input type="checkbox" id="share-all"><span><b>모두에게 공개</b> · 전체 선택</span></label>`+others.map(m=>{const w=m.role?who(m.role):{name:m.name,real:''};return `<label class="chk"><input type="checkbox" name="to" value="${m.id}" ${done.has(m.id)?'checked disabled':''}><span>${idInline(w,true)}${done.has(m.id)?' · 이미 공개':''}</span></label>`;}).join('');
+  $('#share-list').innerHTML=`<label class="chk all"><input type="checkbox" id="share-all"><span><b>모두에게 공개</b> · ${state.scenario_meta?.token_mode==='reveal'&&c.own?`토큰 1개 사용 (보유 ${state.me.tokens}개)`:'전체 선택'}</span></label>`+others.map(m=>{const w=m.role?who(m.role):{name:m.name,real:''};return `<label class="chk"><input type="checkbox" name="to" value="${m.id}" ${done.has(m.id)?'checked disabled':''}><span>${idInline(w,true)}${done.has(m.id)?' · 이미 공개':''}</span></label>`;}).join('');
   $('#sharebox').dataset.clue=cid;$('#sharebox').showModal();}
 function syncShareAll(source){const boxes=[...document.querySelectorAll('#share-list input[name=to]:not(:disabled)')],all=$('#share-all');if(!all)return;
   if(source==='all')boxes.forEach(b=>b.checked=all.checked);else all.checked=boxes.length>0&&boxes.every(b=>b.checked);}
 
-const hlTab=()=>{const g=catalog.guide?.[state?.phase];return g&&!saved.get(visKey())?g.tab:null;};
-function guideCard(){const g=catalog.guide?.[state.phase];if(!g)return '';const id='guide-'+state.phase;
+const guideOf=ph=>(state?.scenario_meta?.guide||catalog.guide)?.[ph];
+const hlTab=()=>{const g=guideOf(state?.phase);return g&&!saved.get(visKey())?g.tab:null;};
+function guideCard(){const g=guideOf(state.phase);if(!g)return '';const id='guide-'+state.phase;
   return `<div class="guidecard ${accOpen.has(id)?'open':''}"><button data-action="acc" data-id="${id}"><span>📌 지금 할 일 · ${esc(g.title)}</span><span class="chev">›</span></button><div class="body"><ol>${g.steps.map(s=>`<li>${fmt(s)}</li>`).join('')}</ol><button class="btn sm" data-action="goto" data-id="${g.tab}">${esc(g.cta)}</button></div></div>`;}
-function stagebar(){const g=catalog.guide?.[state.phase];if(!g||state.phase==='ending')return '';
+function stagebar(){const g=guideOf(state.phase);if(!g||state.phase==='ending')return '';
   if(state.phase==='final'){const n=state.members.filter(m=>m.submitted).length;return `<div class="stagebar"><div><b>${n}/${state.size}명 제출</b><small>${esc(g.agree)}</small></div><button class="btn sm" data-action="goto" data-id="deduce">추리 탭으로</button></div>`;}
   const voted=state.votes.includes(state.me.id),names=state.votes.map(id=>whoMember(id).name).join(', ');
   return `<div class="stagebar agree"><div><b>${state.votes.length}/${state.size}명이 다음 단계에 동의했어요</b>${names?`<small>동의한 사람: ${esc(names)}</small>`:''}<small>${esc(g.agree)}</small></div><button class="btn sm ${voted?'ghost':''}" data-action="vote">${voted?'동의 취소':'다 했어요 · 다음 단계 동의'}</button></div>`;}
@@ -390,6 +407,7 @@ document.addEventListener('submit',async e=>{
       const boxes=[...document.querySelectorAll('#share-list input[name=to]:not(:disabled)')],chosen=boxes.filter(b=>b.checked).map(b=>b.value),everyone=$('#share-all').checked;
       if(!chosen.length){toast('공개할 사람을 선택해주세요.');return;}
       const cid=$('#sharebox').dataset.clue;$('#sharebox').close();
+      if(everyone&&state.scenario_meta?.token_mode==='reveal'){justSpent=true;setTimeout(()=>{justSpent=false;},1800);}
       if(await act('share',{clue:cid,to:everyone?'all':chosen}))toast(everyone?'모두에게 공개했어요. 단서 탭에서 확인할 수 있어요.':'선택한 사람에게만 공개했어요.');
     }else if(form.id==='deduction-form'){
       if(!await confirmInPage('추리를 제출할까요?','제출 후에는 수정할 수 없습니다. 전원 제출 또는 시간 종료 후 진상이 공개됩니다.'))return;
