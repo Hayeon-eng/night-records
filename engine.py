@@ -54,10 +54,10 @@ class Engine:
         self.clock=clock;self.store=store if hasattr(store,'load') else SqliteStore(store);self.path=getattr(self.store,'path',None)
     def create(self,name,size,pace,scenario_id=None):
         name=clean(name,24,'이름')
-        if type(size) is not int or size not in (2,6,7,8): raise GameError('정원은 2명 테스트 또는 6~8명입니다.')
-        if pace not in ('normal','quick'): raise GameError('진행 속도를 선택해주세요.')
         scenario = get_scenario(scenario_id)
         if scenario is None: raise GameError('선택한 에피소드를 찾을 수 없습니다.',404)
+        if type(size) is not int or size not in getattr(scenario,'SIZES',(2,6,7,8)): raise GameError(getattr(scenario,'SIZE_ERROR','정원은 2명 테스트 또는 6~8명입니다.'))
+        if pace not in ('normal','quick'): raise GameError('진행 속도를 선택해주세요.')
         token=secrets.token_urlsafe(32); mid=secrets.token_hex(8); now=self.clock()
         for _ in range(20):
             # 사람이 읽을 수 있는 초대 코드이며 참가자 인증 정보가 아니다.
@@ -98,6 +98,8 @@ class Engine:
         v0=room['version'];self.tick(room);moved=room['version']!=v0
         S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]; ROLE_IDS={r['id'] for r in S.ROLES}; REQUIRED={r['id'] for r in S.ROLES if r['required']}; CLUES={c['id']:c for c in S.CLUES}
         REQUIRED = set(getattr(S, 'REQUIRED_BY_SIZE', {}).get(room['size'], REQUIRED))
+        strict = room['size']>=6 or room['size'] in getattr(S, 'REQUIRED_BY_SIZE', {})
+        reveal = getattr(S,'TOKEN_MODE','investigate')=='reveal'
         if action=='join':
             if room['phase']!='lobby':raise GameError('이미 시작한 방입니다.',409)
             if len(room['members'])>=room['size']:raise GameError('정원이 찼습니다.',409)
@@ -119,13 +121,13 @@ class Engine:
             if any(x['role']==rid and x['id']!=m['id'] for x in room['members']):raise GameError('이미 선택된 역할입니다.',409)
             # Guarantee there are enough unfilled slots for all mandatory roles.
             assigned=[rid if x['id']==m['id'] else x['role'] for x in room['members']]
-            missing=len(REQUIRED-set(assigned)) if room['size']>=6 else 0;free=room['size']-len([v for v in assigned if v])
+            missing=len(REQUIRED-set(assigned)) if strict else 0;free=room['size']-len([v for v in assigned if v])
             if missing>free:raise GameError('남은 자리는 필수 역할을 위해 비워두어야 합니다.')
             m['role']=rid;m['ready']=False
         elif action=='ready':
             if room['phase']!='lobby' or not m['role']:raise GameError('먼저 역할을 선택해주세요.')
             m['ready']=not m['ready']
-            if len(room['members'])==room['size'] and all(x['ready'] for x in room['members']) and (room['size']<6 or REQUIRED<=set(x['role'] for x in room['members'])):self.advance(room)
+            if len(room['members'])==room['size'] and all(x['ready'] for x in room['members']) and (not strict or REQUIRED<=set(x['role'] for x in room['members'])):self.advance(room)
         elif action=='vote':
             if room['phase'] in ('lobby','final','ending'):raise GameError('지금은 단계 동의를 받지 않습니다.')
             if m['id'] in room['votes']:room['votes'].remove(m['id'])
@@ -137,6 +139,7 @@ class Engine:
             if to and (to==m['id'] or not any(x['id']==to for x in room['members'])):raise GameError('귓속말 대상을 확인해주세요.')
             self.message(room,m['id'],to,text);m['last_chat']=self.clock()
         elif action=='investigate':
+            if reveal:raise GameError('이 에피소드에서는 다른 사람의 봉인 기록을 열 수 없습니다. 기록의 주인이 공개해야 볼 수 있어요.',409)
             if room['phase'] not in ('r1','r2','r3'):raise GameError('조사 단계에서만 열 수 있습니다.')
             cid=body.get('clue');clue=CLUES.get(cid)
             if not clue:raise GameError('단서를 찾을 수 없습니다.')
@@ -156,6 +159,7 @@ class Engine:
                 to=list(dict.fromkeys(to))
                 if others and set(to)>=set(others):to='all'
             if to=='all':
+                if reveal and clue['owner']==m['role'] and self.tokens(room,m)<=0:raise GameError('정보공개 토큰이 없습니다. 토큰 없이도 말로 설명하거나, 일부에게만 보여줄 수 있어요.')
                 if not claim:room['claims'][cid]=claim=dict(by=m['id'],shared=False)
                 claim['shared']=True;claim['shared_by']=m['id'];self.event(room,cid,m['id'],None)
             else:
@@ -169,7 +173,7 @@ class Engine:
             answer=body.get('answers',{})
             if not isinstance(answer,dict):raise GameError('답안을 확인해주세요.')
             for q in self.scenario(room).QUESTIONS:
-                if answer.get(q['id']) not in [o['id'] for o in q['options']]:raise GameError('네 항목 모두 선택해주세요.')
+                if answer.get(q['id']) not in [o['id'] for o in q['options']]:raise GameError('모든 항목을 선택해주세요.')
             note=body.get('note','')
             if not isinstance(note,str) or len(note)>2000:raise GameError('추리 근거는 2000자 이내입니다.')
             room['submissions'][m['id']]=dict(answers={q['id']:answer[q['id']] for q in self.scenario(room).QUESTIONS},note=note.strip())
@@ -195,9 +199,17 @@ class Engine:
         room['deadline']=self.clock()+minutes*60*(.5 if room['pace']=='quick' else 1) if minutes else None
         self.system(room,f'{label} 단계가 시작되었습니다.')
         if phase=='ending':room['result']=self.result(room)
+    def token_total(self,room):
+        table=getattr(self.scenario(room),'TOKEN_TOTALS',None) or {'r1':1,'r2':2,'r3':3,'final':3,'ending':3}
+        return table.get(room['phase'],0)
     def tokens(self,room,m):
-        total={'r1':1,'r2':2,'r3':3,'final':3,'ending':3}.get(room['phase'],0)
-        return max(0,total-len(m['acquired']))
+        S=self.scenario(room)
+        if getattr(S,'TOKEN_MODE','investigate')=='reveal':
+            # 내 봉인 기록을 모두에게 공개한 횟수만큼 사용한 것으로 센다.
+            owner={c['id']:c['owner'] for c in S.CLUES}
+            used=sum(1 for cid,cl in room['claims'].items() if cl.get('shared_by')==m['id'] and owner.get(cid)==m['role'])
+        else:used=len(m['acquired'])
+        return max(0,self.token_total(room)-used)
     def names(self,room):
         S=self.scenario(room); out={}
         for r in S.ROLES:
@@ -215,11 +227,14 @@ class Engine:
             sub=room['submissions'].get(m['id']);a=sub['answers'] if sub else {}
             if a.get('culprit'):votes[a['culprit']]=votes.get(a['culprit'],0)+1
             marks={k:a.get(k)==v for k,v in S.ANSWERS.items()}
-            scores.append(dict(member=m['id'],role=m['role'],score=sum(marks.values()),marks=marks,submitted=bool(sub),answers=a,note=sub['note'] if sub else '미제출'))
+            pts=getattr(S,'POINTS',None);score=sum(pts[k] for k,ok in marks.items() if ok) if pts else sum(marks.values())
+            scores.append(dict(member=m['id'],role=m['role'],score=score,marks=marks,submitted=bool(sub),answers=a,note=sub['note'] if sub else '미제출'))
         high=max(votes.values(),default=0);leaders=[r for r,n in votes.items() if n==high]
         culprit_role=getattr(S, 'CULPRIT_ROLE', 'planner');justice=leaders==[culprit_role];avg=sum(s['score'] for s in scores)/len(scores)
-        past=sum(s['marks']['past'] for s in scores)>len(scores)/2
-        grade='unresolved' if len(leaders)!=1 else 'bad' if not justice else 'perfect' if avg>=3.5 and past else 'true' if avg>=2.5 else 'normal'
+        rates={k:sum(s['marks'][k] for s in scores)/len(scores) for k in S.ANSWERS}
+        past=rates.get('past',0)>.5
+        if hasattr(S,'grade'):grade=S.grade(leaders=leaders,justice=justice,rates=rates,avg=avg)
+        else:grade='unresolved' if len(leaders)!=1 else 'bad' if not justice else 'perfect' if avg>=3.5 and past else 'true' if avg>=2.5 else 'normal'
         E=S.ENDING[grade];accused=leaders[0] if len(leaders)==1 else None;nm=self.names(room)
         if accused:nm['accused']=nm['accused:n']=nm[accused];nm['accused:t']=nm[accused+':t'];nm['accused:p']=nm[accused+':p']
         f=lambda v:fill(v,nm) if isinstance(v,str) else [fill(x,nm) for x in v]
@@ -242,13 +257,15 @@ class Engine:
             local=dict(nm,n=r['name'],who=', '.join(who));absent.append(dict(role=r['id'],lines=[fill(x,local) for x in lines]))
         groups=[g for g in (dict(kind='culprit',members=culprit,link=''),dict(kind='right',members=right,link=f(E['good_link'])),dict(kind='wrong',members=wrong,link=f(E['bad_link']))) if g['members']]
         ending=dict(intro=f(E['intro']),arrest=f(E['arrest']),timeline=[[a,fill(b,nm)] for a,b in S.NIGHT_TIMELINE],truth=f(S.TRUTH),groups=groups,absent=absent,aftermath=f(E['aftermath']),closing=f(E['closing']))
-        return dict(grade=grade,title=E['title'],stamp=E['stamp'],text=ending['intro'][0],votes=votes,leaders=leaders,accused=accused,average=round(avg,2),past_solved=past,scores=scores,truth=S.TRUTH,ending=ending)
+        return dict(grade=grade,title=E['title'],stamp=E['stamp'],text=ending['intro'][0],votes=votes,leaders=leaders,accused=accused,average=round(avg,2),max_score=sum(S.POINTS.values()) if getattr(S,'POINTS',None) else len(S.ANSWERS),past_solved=past,scores=scores,truth=S.TRUTH,ending=ending)
     def project(self,room,m):
         S=self.scenario(room); PHASE_IDS=[p[0] for p in S.PHASES]; CLUES={c['id']:c for c in S.CLUES}
         names=self.names(room);idx=PHASE_IDS.index(room['phase']);ending=room['phase']=='ending'
         members=[dict(id=x['id'],name=x['name'],role=x['role'],ready=x['ready'],online=self.clock()-x['last_seen']<25,submitted=x['id'] in room['submissions']) for x in room['members']]
         required_for_size=set(getattr(S, 'REQUIRED_BY_SIZE', {}).get(room['size'], {r['id'] for r in S.ROLES if r['required']}))
-        roles=[{**{k:r[k] for k in ('id','name','title','icon','faction','teaser','public')},'required':r['id'] in required_for_size} for r in S.ROLES]
+        fixed=room['size'] in getattr(S,'REQUIRED_BY_SIZE',{})
+        roles=[{**{k:r[k] for k in ('id','name','title','icon','faction','teaser','public')},'required':r['id'] in required_for_size,'selectable':(r['id'] in required_for_size) if fixed else True} for r in S.ROLES]
+        played={x['role'] for x in room['members'] if x['role']}
         clues=[];shares=room.get('shares',{})
         for c in S.CLUES:
             claim=room['claims'].get(c['id']);grants=shares.get(c['id'],{}).get('grants',{})
@@ -265,11 +282,12 @@ class Engine:
             to=ev['to'];mine_ev=ev['by']==m['id'];to_me=bool(to) and m['id'] in to;known=to is None or mine_ev or to_me
             events.append(dict(id=ev['id'],by=ev['by'],to=to,all=to is None,mine=mine_ev,to_me=to_me,at=ev['at'],clue=ev['clue'] if known else None,title=CLUES[ev['clue']]['title'] if known else None))
         messages=[v for v in room['messages'] if not v['to'] or v['to']==m['id'] or v['sender']==m['id']][-300:]
-        out=dict(code=room['code'],size=room['size'],pace=room['pace'],scenario=room.get('scenario'),scenario_meta=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),tutorial=S.TUTORIAL,guide=S.PHASE_GUIDE),version=room['version'],phase=room['phase'],deadline=room['deadline'],server_now=self.clock(),
+        out=dict(code=room['code'],size=room['size'],pace=room['pace'],scenario=room.get('scenario'),scenario_meta=dict(id=S.ID,title=S.TITLE,summary=S.SUMMARY,intro=S.INTRO,rules=S.RULES,theme=getattr(S,'THEME','noir'),stamp=getattr(S,'STAMP',''),strip=getattr(S,'STRIP','CASE FILE'),tutorial=S.TUTORIAL,guide=S.PHASE_GUIDE,
+                                 token_mode=getattr(S,'TOKEN_MODE','investigate'),tab_help=getattr(S,'TAB_HELP',{}),scoring_note=getattr(S,'SCORING_NOTE','')),version=room['version'],phase=room['phase'],deadline=room['deadline'],server_now=self.clock(),
                  phases=[dict(id=p[0],title=p[1]) for p in S.PHASES],members=members,roles=roles,votes=room['votes'],
-                 me=dict(id=m['id'],name=m['name'],role=m['role'],ready=m['ready'],tokens=self.tokens(room,m),submission=room['submissions'].get(m['id'])),
-                 clues=clues,events=events,messages=messages,evidence=[e for e in S.EVIDENCE if idx>=PHASE_IDS.index(e['phase'])],
-                 book=next((r for r in S.ROLES if r['id']==m['role']),None) if idx>=1 else None,
+                 me=dict(id=m['id'],name=m['name'],role=m['role'],ready=m['ready'],tokens=self.tokens(room,m),tokens_total=self.token_total(room),submission=room['submissions'].get(m['id'])),
+                 clues=clues,events=events,messages=messages,evidence=[e for e in S.EVIDENCE if idx>=PHASE_IDS.index(e['phase']) and (e.get('npc') is None or e['npc'] not in played)],
+                 book=({k:v for k,v in next((r for r in S.ROLES if r['id']==m['role']),{}).items() if ending or k!='final'} or None) if idx>=1 else None,
                  questions=S.QUESTIONS if idx>=PHASE_IDS.index('final') else [],result=room['result'] if ending else None,
                  archive=S.ROLES if ending else [],rules=S.RULES)
         return self.render(copy.deepcopy(out),names)
