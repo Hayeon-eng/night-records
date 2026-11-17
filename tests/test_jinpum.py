@@ -56,10 +56,14 @@ class JinpumEpisodeTests(unittest.TestCase):
         with self.assertRaises(GameError):
             self.act(people[0], 'role', {'role': 'auction'})
 
-    def test_default_catalog_is_jinpum(self):
-        from scenario_registry import DEFAULT_SCENARIO_ID, get_scenario
-        self.assertEqual(DEFAULT_SCENARIO_ID, J.ID)
+    def test_default_catalog_is_current_jinpum_and_v1_stays_registered(self):
+        # 기본 에피소드는 MASTER STORY BIBLE v3.1(jinpum-v2). v1 은 기존 방 호환용으로만 남는다.
+        from scenario_registry import DEFAULT_SCENARIO_ID, get_scenario, catalog
+        import scenario_jinpum2 as J2
+        self.assertEqual(DEFAULT_SCENARIO_ID, J2.ID)
         self.assertEqual(get_scenario().TITLE, '진품명품')
+        self.assertIs(get_scenario(J.ID), J)
+        self.assertEqual([c['id'] for c in catalog()], [J2.ID])
         self.assertTrue(all('name' in role for role in J.ROLES))
 
 
